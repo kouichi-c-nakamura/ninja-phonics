@@ -1,33 +1,120 @@
+# 🥷 NinjaPhonetics (ニンジャ・フォネティクス)
 
-# NinjaPhonetics
+> **「なんとなく通じない」を、物理波形と調音バイオフィードバックで可視化する。**  
+> 日本人英語学習者が最も苦戦する音響的ボトルネックに特化した、リアルタイム・オシロスコープ型発音指導ツール。
 
-Deterministic Acoustic Biofeedback & Biomechanical Coaching for Japanese English Learners.
+---
 
-Unlike black-box pronunciation apps that only output vague accuracy scores, NinjaPhonetics visualizes physical acoustic targets (Formant convergence, Spectral Center of Gravity, 2D Vowel Spaces) via Plotly and translates acoustic deviations into concrete, anatomical articulatory cues (e.g., upper-molar lateral tongue anchoring) powered by LLMs.
+## 💡 コンセプトと開発思想
 
+市販の発音アプリの多くは、AIが「82点」「Good!」といったブラックボックスなスコアを返すだけで、**「口腔内のどこがどうズレているのか」という身体的・物理的な処方箋**を提示してくれません。
+
+言語によって調音器官（舌・唇・声帯）のデフォルトの使い方は全く異なります。  
+母国語特有の干渉パターンごとに「最も効く物理指標」を選び抜き、直感的な可視化計器（バイオフィードバック）として提供することで、誰でも迷わず最短でネイティブの調音ターゲットに到達できるようにします。
+
+現バージョンは**「日本人学習者最大の壁：接近音・渡り音（/r/, /l/, /w/）」**を集中的に攻略するオシロスコープを配備しています。
+
+---
+
+## 🎯 現在の実装フォーカス：接近音・液音の動態（A1 & 派生）
+
+日本人の英語学習者が特に手こずる重要単語にフォーカスし、高精度な音響解析（Burg法 LPC + 広帯域スペクトログラム）でお手本と自分の声をミリ秒単位で比較できます。
+
+### 重点対象語と音響チェックポイント
+
+| お手本単語 | 音響物理ターゲット | 指導・調音のチェックポイント |
+| :--- | :--- | :--- |
+| **🇺🇸 Right (US)** | **$F_3$ の垂直落下**<br>$\Delta(F_3 - F_2) < 500\,\text{Hz}$ | 語頭で青（$F_3$）と緑（$F_2$）が抱き合うように接近し、差分ライン（黄色）が $1000\,\text{Hz}$ 破線よりはるかに深く潜り込む（舌先を巻くのではなく、**舌の側面を上顎の奥歯に密着させるアンカー**）。 |
+| **🇬🇧 Right (UK)** | **$F_3$ 狭窄 ＋ 二重母音への渡り** | 語頭で $F_3$ がくびれた後、後続母音 `/aɪ/` への移行に伴って $F_2$ が右肩上がりに上昇する軌跡を確認。 |
+| **🇬🇧 Light (UK)** | **$F_3$ 高止まり（天井キープ）**<br>$\Delta(F_3 - F_2) > 1500\,\text{Hz}$ | 舌先が上前歯の歯茎に密着するため、$F_3$ は $2700\sim 2800\,\text{Hz}$ の高域にとどまり、差分は $1000\,\text{Hz}$ 破線を決して割らない。 |
+| **⚪ White (UK)** | **円唇による $F_2$ の一時降下** | 唇をすぼめることで $F_2$ が一時的に下がるが、$F_3$ は下がらない。差分ラインが並行推移し、R のようなくびれ（谷）にならないことを確認。 |
+| **🇯🇵 ライト (JP)** | **舌先タップ破裂 ＋ 末尾母音 [o] 付加** | 「ラ」の瞬間に生波形で閉鎖・破裂パルスが発生。さらに語尾に英語の `/t/` には存在しない母音「オ」（低 $F_2/F_3$）が独立して鳴るカタカナ発音を可視化。 |
+| **🔄 Really** *(実装中)* | **谷（/r/）から山（/l/）への急上昇** | 1単語の中で、前半の /r/（$\Delta < 1000\,\text{Hz}$）から後半の /l/（$F_3 > 2600\,\text{Hz}$）へ一気にダイナミックに駆け上がるコントラストを判定。 |
+| **⚡ Very** *(実装中)* | **有声摩擦（/v/）から /r/ の谷へ** | 語頭の /v/（規則的な声帯振動パルス）を持続させたまま、日本語の「ベ（破裂音）」に化けさせず後続の /r/ の谷へ滑らかに移行。 |
+
+---
+
+## 🛠️ 主な機能とUI設計（Spike2-Style Biofeedback Scope）
+
+1. **3段連動オシロスコープ（ダークモード計器）**
+   * **第1段（Waveform）**: 生波形（振幅エンベロープ）。無音区間、子音破裂パルス、音節の長さを視認。
+   * **第2段（$F_3 / F_2$ ホルマント）**: 青（$F_3$）と緑（$F_2$）の軌跡。
+   * **第3段（$\Delta(F_3 - F_2)$ 差分）**: Rの合格ライン（$1000\,\text{Hz}$ 破線）を備えたリアルタイム判定段。
+2. **広帯域スペクトログラム背景（等高線ヒートマップ）**
+   * LPC（Burg法）によるトラッキング誤認や線の乱れが生じた際も、物理的な共鳴エネルギー帯（白い光帯）で真のホルマントを確認可能。
+   * ツールバーの `🌫️ Spectrogram: ON/OFF` ボタンで瞬時に表示切替が可能。
+3. **インタラクティブ・オーディオ操作**
+   * **ドラッグ選択**: 注目したい子音・母音区間をドラッグしてハイライト（極淡いアイスブルー）。
+   * **可動赤色カーソル**: クリックやドラッグで任意の位置の正確な周波数（$F_3, F_2, \Delta$）をミリ秒単位でリアルタイム表示。
+   * **可変速再生**: 1.0x / 0.7x / 0.5x（スロー再生）に対応し、Spaceキーで即座に区間試聴。
+4. **1画面収容（Single Viewport）**
+   * スクロール不要でタブレットやノートPCの画面にピッタリ収まるコンパクト設計。
+
+---
+
+## 📁 ディレクトリ構成
+
+```text
+ninja-phonics/
+├── app.py              # Streamlit + Canvas UI 本体
+├── requirements.txt    # 最小依存関係
+├── README.md           # プロジェクト説明書
+└── presets/            # お手本WAV音声（44.1kHz 16bit PCM）
+    ├── right_us.wav
+    ├── right_uk.wav
+    ├── light_uk.wav
+    ├── white_uk.wav
+    ├── raito_jp.wav
+    ├── really.wav
+    └── very.wav
 
 ```
-NinjaPhonetics/
-├── README.md
-├── pyproject.toml / requirements.txt   # parselmouth, librosa, plotly, google-genai 等
-├── ninjaphonetics/
-│   ├── __init__.py
-│   ├── alignment/
-│   │   └── aligner.py                  # MFA / wav2vec2 による音素区間スライス
-│   ├── analyzers/                      # 【厳選5領域の決定論的物理エンジン】
-│   │   ├── a1_rl_formants.py           # A1: /r/ vs /l/ (F3 - F2 近接度)
-│   │   ├── b1_sibilant_cog.py          # B1: /si/ vs /ʃi/ (スペクトル重心 COG)
-│   │   ├── b2_fricative_power.py       # B2: /f/ vs /v/ (摩擦パワー比 + F0)
-│   │   ├── e3_vowel_triangle.py        # E3: hat/hot/hut/caught (F1-F2 2Dマップ)
-│   │   └── e4_diphthong_glide.py       # E4: /ɔː/ vs /oʊ/ (ΔF1, ΔF2 ベクトル)
-│   ├── visualizers/
-│   │   └── plotly_charts.py            # Plotlyによるターゲットゾーン付きグラフ生成
-│   └── coach/
-│       ├── prompts.py                  # 身体指導（アンカー・脱力）変換用システムプロンプト
-│       └── llm_client.py               # 診断JSON → Gemini API 連携
-└── app/
-    └── main.py                         # フロントエンド / UI エントリーポイント
+
+---
+## サービスURL
+こちらから無料で利用できます。
+
+https://ninja-phonics-2026.streamlit.app/
+
+
+## 🚀 ローカルでのセットアップ・実行方法
+
+### 1. リポジトリのクローンと環境構築
+
+```bash
+git clone [https://github.com/](https://github.com/)<your-username>/ninja-phonics.git
+cd ninja-phonics
+
+# 仮想環境の作成と有効化
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 依存パッケージのインストール
+pip install -r requirements.txt
+
 ```
+
+### 2. アプリの起動
+
+```bash
+streamlit run app.py
+
+```
+
+ブラウザで `http://localhost:8501` を開き、上部のお手本ボタンまたはマイク録音から解析を行います。
+
+---
+
+## 🗺️ 今後のロードマップ（課題別可視化ツールの展開）
+
+母国語の音韻体系に応じて、適切な物理指標・表示形式を段階的に追加予定です。
+
+* [ ] **A1 強化**: `really` / `very` のプリセット音声登録とお手本解説カードの連動
+* [ ] **B1 対策**: `/si/` vs `/ʃi/`（高域スペクトル重心 COG 分析・$0\sim 8000\,\text{Hz}$ 全帯域スペクトログラム）
+* [ ] **B2 対策**: `/f/` vs `/v/`（無声・有声摩擦パワー比 ＋ $F_0$ 有声バー表示）
+* [ ] **E2 対策**: 強弱リズム・母音長比（モーラ拍からストレス拍への移行・持続時間比チェッカー）
+* [ ] **E3 対策**: ア・オ系母音（hat / hot / hut / caught）の $F_1-F_2$ 2D母音マップ
+* [ ] **Gemini API 連携**: 差分値・持続時間などの物理特徴量から、完全無料枠で身体的処方箋（アドバイス）を自動生成するリアルタイムコーチング機能
 
 
 
@@ -54,3 +141,6 @@ NinjaPhonetics/
 |                           | **E6. /ɪ/ の質** (*sit* vs *seat*)                           | **低**     | △                | **$F_1 / F_2$ 座標** (/iː/ との距離)                         | ・/iː/（高 $F_2$、極低 $F_1$）に対する、/ɪ/ の中舌化・広母音化（弛緩母音）。 | 「口角を横に引くのをやめ、日本語の『エ』の口の形のまま『イ』と言う」。 |
 |                           | **E7. 三重母音** (*fire*, *power* 等)                        | **低**     | △                | **ホルマント軌跡の3点推移**                                  | ・中央の要素の弱化・平滑化（Smoothing）の度合い。            | 「3つの母音を律儀に言おうとせず、中央を軽くかすめて滑らかに抜ける」。 |
 | **F. 連鎖・プロソディ系** | **F1. リンキング・リダクション** (*I got to know about it.*) | **中**     | △ (知識で解決)   | **音節境界のエネルギー谷** (Valley Depth)                    | ・単語境界での急激な音圧低下（不要なポーズ・息継ぎ）がないか。 ・音響的連続性。 | 理屈の解説が主。「個別の単語を発音し直すのではなく、1つの長い単語として息を止めずに一息で言い切る」。 |
+
+開発者
+中村 公一

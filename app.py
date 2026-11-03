@@ -8,27 +8,50 @@ import json
 import io
 import os
 
-st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide")
+st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide", initial_sidebar_state="collapsed")
 
+# 画面全体をスクロール不要な1ビューに収めるためのCSS
 st.markdown("""
 <style>
-    .block-container { padding-top: 1.0rem; padding-bottom: 0.5rem; }
+    .block-container {
+        padding-top: 0.8rem !important;
+        padding-bottom: 0.2rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+    h1 {
+        font-size: 1.6rem !important;
+        margin-bottom: 0.4rem !important;
+        color: #F8FAFC !important;
+    }
     div[data-testid="stAudioInput"] {
-        background: #F8FAFC;
-        border: 2px solid #CBD5E1;
-        border-radius: 12px;
-        padding: 10px 16px;
+        background: #1E293B;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 6px 14px;
+        margin-bottom: 0.4rem;
     }
     div[data-testid="stAudioInput"] button {
-        transform: scale(1.2);
-        margin: 4px 12px;
+        transform: scale(1.1);
+    }
+    .stButton button {
+        background-color: #1E293B !important;
+        color: #E2E8F0 !important;
+        border: 1px solid #475569 !important;
+        font-weight: bold !important;
+        padding: 6px 10px !important;
+        border-radius: 6px !important;
+    }
+    .stButton button:hover {
+        background-color: #334155 !important;
+        border-color: #38BDF8 !important;
+        color: #38BDF8 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🥷 NinjaPhonetics: Biofeedback Scope")
 
-# セッション状態の初期化
 if "current_audio_bytes" not in st.session_state:
     st.session_state.current_audio_bytes = None
 if "current_label" not in st.session_state:
@@ -46,7 +69,6 @@ PRESETS = [
     {"label": "🇯🇵 ライト (JP)", "file": "raito_jp.wav"},
 ]
 
-st.markdown("##### 🎯 お手本プリセット（クリックして波形をロード）")
 cols = st.columns(len(PRESETS))
 preset_clicked = False
 
@@ -60,23 +82,21 @@ for idx, col in enumerate(cols):
                 st.session_state.current_label = f"お手本: {p_info['label']}"
             preset_clicked = True
             st.rerun()
-        else:
-            st.warning(f"`{file_path}` が見つかりません。")
 
-# 自前のマイク入力
-audio_input = st.audio_input("🎙️ または自分の声を録音して比較する")
-if audio_input is not None:
-    st.session_state.current_audio_bytes = audio_input.read()
-    st.session_state.current_label = "あなたの発音録音"
+# マイク入力
+audio_input = st.audio_input("🎙️ または自分の声を録音して解析")
+if not preset_clicked and audio_input is not None:
+    new_bytes = audio_input.read()
+    if new_bytes != st.session_state.last_recorded_bytes:
+        st.session_state.last_recorded_bytes = new_bytes
+        st.session_state.current_audio_bytes = new_bytes
+        st.session_state.current_label = "あなたの発音録音"
 
 
 def decode_audio_bytes(audio_bytes: bytes):
-    """バイト列からサンプリング周波数とモノラルNumPy配列を取り出す (WAV / M4A 対応)"""
     try:
-        # まず通常の soundfile (WAV / FLAC 等) で試行
         data, sr = sf.read(io.BytesIO(audio_bytes))
     except Exception:
-        # m4a / AAC の場合は pydub を利用して安全に展開
         from pydub import AudioSegment
         seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
         sr = seg.frame_rate
@@ -122,8 +142,8 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
             f2_list.append(None); f3_list.append(None); delta_list.append(None)
 
     if valid_times:
-        x_min = max(0.0, float(min(valid_times)) - 0.1)
-        x_max = min(float(snd.duration), float(max(valid_times)) + 0.1)
+        x_min = max(0.0, float(min(valid_times)) - 0.08)
+        x_max = min(float(snd.duration), float(max(valid_times)) + 0.08)
     else:
         x_min, x_max = 0.0, float(snd.duration)
 
@@ -133,7 +153,6 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
     wave_t = np.round(raw_times[::step], 4).tolist()
     wave_y = np.round(raw_samples[::step], 4).tolist()
 
-    # Web Audio API 互換のため、常に clean な WAV バイトを生成して Base64 化
     wav_io = io.BytesIO()
     sf.write(wav_io, audio_data, sample_rate, format='WAV')
     wav_b64 = base64.b64encode(wav_io.getvalue()).decode("utf-8")
@@ -161,49 +180,50 @@ def build_spike2_html(data: dict) -> str:
 <style>
   body {{
     margin: 0; padding: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #FFFFFF; color: #0F172A;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0B0F19; color: #E2E8F0;
     user-select: none;
+    overflow: hidden;
   }}
   .toolbar {{
-    display: flex; align-items: center; gap: 16px;
-    padding: 12px 18px; background: #F8FAFC;
-    border: 2px solid #CBD5E1; border-radius: 8px 8px 0 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px; background: #0F172A;
+    border: 1px solid #1E293B; border-radius: 8px 8px 0 0;
   }}
   button {{
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 20px; font-weight: bold;
-    padding: 10px 22px; border-radius: 8px;
-    border: 2px solid #334155; cursor: pointer;
-    background: #FFFFFF; color: #0F172A;
+    font-size: 16px; font-weight: bold;
+    padding: 8px 18px; border-radius: 6px;
+    border: 1px solid #334155; cursor: pointer;
+    background: #1E293B; color: #E2E8F0;
     transition: all 0.15s;
     white-space: nowrap;
   }}
-  button.primary {{ background: #2563EB; color: white; border-color: #1D4ED8; }}
+  button.primary {{ background: #2563EB; color: white; border-color: #3B82F6; }}
   button.primary:hover {{ background: #1D4ED8; }}
-  button:hover {{ background: #E2E8F0; }}
+  button:hover {{ background: #334155; color: white; }}
   
   select {{
-    font-size: 18px; padding: 8px 12px;
-    border-radius: 8px; border: 2px solid #334155;
-    font-family: Arial, Helvetica, sans-serif; font-weight: bold;
+    font-size: 15px; padding: 6px 10px;
+    border-radius: 6px; border: 1px solid #334155;
+    background: #1E293B; color: #E2E8F0;
+    font-weight: bold;
   }}
   .readout {{
-    font-size: 19px; font-weight: bold; margin-left: auto;
-    font-variant-numeric: tabular-nums; color: #1E293B;
+    font-size: 17px; font-weight: bold; margin-left: auto;
+    font-variant-numeric: tabular-nums; color: #38BDF8;
     white-space: nowrap;
   }}
   #scope-wrapper {{
-    position: relative; width: 100%; height: 780px;
-    border: 2px solid #334155; border-top: none;
-    background: #FFFFFF;
+    position: relative; width: 100%; height: 580px;
+    border: 1px solid #1E293B; border-top: none;
+    background: #090D16;
   }}
   canvas {{
     position: absolute; left: 0; top: 0;
     width: 100%; height: 100%;
   }}
   #overlay-canvas {{
-    mix-blend-mode: multiply;
+    mix-blend-mode: screen;
   }}
 </style>
 </head>
@@ -211,8 +231,8 @@ def build_spike2_html(data: dict) -> str:
 
 <div class="toolbar">
   <button id="btn-play" class="primary">▶ Play (Space)</button>
-  <button id="btn-reset">⏮ 全体選択に戻す</button>
-  <label style="font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+  <button id="btn-reset">⏮ 全体選択</button>
+  <label style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px; color: #94A3B8;">
     Speed:
     <select id="sel-rate">
       <option value="1.0">1.0x (標準)</option>
@@ -242,8 +262,8 @@ const btnReset = document.getElementById('btn-reset');
 const selRate = document.getElementById('sel-rate');
 const readout = document.getElementById('time-readout');
 
-const MARGIN = {{ left: 130, right: 40, top: 25, bottom: 65 }};
-let W = 1000, H = 780;
+const MARGIN = {{ left: 110, right: 30, top: 20, bottom: 45 }};
+let W = 1000, H = 580;
 
 let xMin = D.x_min;
 let xMax = D.x_max;
@@ -281,11 +301,11 @@ function xToT(x) {{
 
 function getPanels() {{
   const totalH = H - MARGIN.top - MARGIN.bottom;
-  const gap = 38;
-  const h1 = 170;
+  const gap = 24;
+  const h1 = 120; // 1段目の波形
   const remainH = totalH - h1 - (gap * 2);
-  const h2 = remainH * 0.50;
-  const h3 = remainH * 0.50;
+  const h2 = remainH * 0.50; // F3/F2
+  const h3 = remainH * 0.50; // 差分
 
   const y1 = MARGIN.top;
   const y2 = y1 + h1 + gap;
@@ -310,12 +330,14 @@ function drawBackground() {{
   bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  bgCtx.clearRect(0, 0, W, H);
+  bgCtx.fillStyle = "#090D16";
+  bgCtx.fillRect(0, 0, W, H);
+
   const panels = getPanels();
   const plotW = W - MARGIN.left - MARGIN.right;
 
-  bgCtx.font = "18px Arial, Helvetica, sans-serif";
-  bgCtx.fillStyle = "#0F172A";
+  bgCtx.font = "14px monospace";
+  bgCtx.fillStyle = "#64748B";
 
   const durationSpan = xMax - xMin;
   const stepT = durationSpan <= 0.6 ? 0.05 : (durationSpan <= 1.5 ? 0.1 : 0.2);
@@ -325,46 +347,49 @@ function drawBackground() {{
     for (let t = firstTick; t <= xMax + 1e-6; t += stepT) {{
       const x = tToX(t);
 
-      bgCtx.strokeStyle = "#E2E8F0";
-      bgCtx.lineWidth = 1.5;
+      // 暗色グリッド
+      bgCtx.strokeStyle = "#172033";
+      bgCtx.lineWidth = 1.0;
       bgCtx.beginPath();
       bgCtx.moveTo(x, p.top);
       bgCtx.lineTo(x, p.bottom);
       bgCtx.stroke();
 
-      bgCtx.strokeStyle = "#334155";
-      bgCtx.lineWidth = 2;
+      // 外向き目盛り線
+      bgCtx.strokeStyle = "#475569";
+      bgCtx.lineWidth = 1.5;
       bgCtx.beginPath();
       bgCtx.moveTo(x, p.bottom);
-      bgCtx.lineTo(x, p.bottom + 6);
+      bgCtx.lineTo(x, p.bottom + 5);
       bgCtx.stroke();
 
-      bgCtx.fillStyle = "#0F172A";
+      // 目盛り数値
+      bgCtx.fillStyle = "#94A3B8";
       bgCtx.textAlign = "center";
       bgCtx.textBaseline = "top";
-      bgCtx.fillText(t.toFixed(2), x, p.bottom + 8);
+      bgCtx.fillText(t.toFixed(2), x, p.bottom + 6);
     }}
   }});
 
-  // 1段目: 生波形
+  // --- 第1段: 生波形 (シアン発光) ---
   const p1 = panels[0];
   const waveMid = (p1.top + p1.bottom) / 2;
-  bgCtx.strokeStyle = "#CBD5E1";
+  bgCtx.strokeStyle = "#1E293B";
   bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, waveMid); bgCtx.lineTo(W - MARGIN.right, waveMid); bgCtx.stroke();
 
   const maxAmp = Math.max(...D.wave_y.map(Math.abs), 0.05);
   [-1.0, 0.0, 1.0].forEach(relVal => {{
     const absVal = relVal * maxAmp;
     const y = valToY(absVal, -maxAmp * 1.1, maxAmp * 1.1, p1);
-    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 2;
-    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 6, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 1.5;
+    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
-    bgCtx.fillText(relVal.toFixed(1), MARGIN.left - 10, y);
+    bgCtx.fillText(relVal.toFixed(1), MARGIN.left - 8, y);
   }});
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p1.top, plotW, p1.height); bgCtx.clip();
-  bgCtx.strokeStyle = "#334155";
+  bgCtx.strokeStyle = "#38BDF8";
   bgCtx.lineWidth = 1.5;
   bgCtx.beginPath();
   for (let i = 0; i < D.wave_t.length; i++) {{
@@ -375,76 +400,72 @@ function drawBackground() {{
   bgCtx.stroke();
   bgCtx.restore();
 
-  // 2段目: F3 / F2
+  // --- 第2段: F3 / F2 (ブルー ＆ エメラルド) ---
   const p2 = panels[1];
   const fMin = 500, fMax = 3200;
   [1000, 1500, 2000, 2500, 3000].forEach(hz => {{
     const y = valToY(hz, fMin, fMax, p2);
-    bgCtx.strokeStyle = "#E2E8F0"; bgCtx.lineWidth = 1.5;
+    bgCtx.strokeStyle = "#172033"; bgCtx.lineWidth = 1.0;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
-    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 2;
-    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 6, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
+    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
-    bgCtx.fillText(hz.toString(), MARGIN.left - 10, y);
+    bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
-  drawSeries(D.times, D.f3, fMin, fMax, p2, "#2563EB", 3.5);
-  drawSeries(D.times, D.f2, fMin, fMax, p2, "#059669", 3.5);
+  drawSeries(D.times, D.f3, fMin, fMax, p2, "#60A5FA", 3.0);
+  drawSeries(D.times, D.f2, fMin, fMax, p2, "#34D399", 3.0);
   bgCtx.restore();
 
-  // F3 / F2 縦並び凡例（2行）
-  const legendX = W - MARGIN.right - 95;
-  const legendY1 = p2.top + 22;
-  const legendY2 = p2.top + 48;
-  bgCtx.font = "bold 18px Arial, Helvetica, sans-serif";
+  // 凡例 (縦並び)
+  const legendX = W - MARGIN.right - 80;
+  const legendY1 = p2.top + 18;
+  const legendY2 = p2.top + 38;
+  bgCtx.font = "bold 15px -apple-system, sans-serif";
 
-  bgCtx.strokeStyle = "#2563EB";
-  bgCtx.lineWidth = 3.5;
-  bgCtx.beginPath();
-  bgCtx.moveTo(legendX, legendY1); bgCtx.lineTo(legendX + 22, legendY1); bgCtx.stroke();
-  bgCtx.fillStyle = "#2563EB";
-  bgCtx.textAlign = "left"; bgCtx.textBaseline = "middle";
-  bgCtx.fillText("F3", legendX + 28, legendY1);
+  bgCtx.strokeStyle = "#60A5FA"; bgCtx.lineWidth = 3.0;
+  bgCtx.beginPath(); bgCtx.moveTo(legendX, legendY1); bgCtx.lineTo(legendX + 18, legendY1); bgCtx.stroke();
+  bgCtx.fillStyle = "#60A5FA"; bgCtx.textAlign = "left"; bgCtx.textBaseline = "middle";
+  bgCtx.fillText("F3", legendX + 24, legendY1);
 
-  bgCtx.strokeStyle = "#059669";
-  bgCtx.lineWidth = 3.5;
-  bgCtx.beginPath();
-  bgCtx.moveTo(legendX, legendY2); bgCtx.lineTo(legendX + 22, legendY2); bgCtx.stroke();
-  bgCtx.fillStyle = "#059669";
-  bgCtx.fillText("F2", legendX + 28, legendY2);
+  bgCtx.strokeStyle = "#34D399"; bgCtx.lineWidth = 3.0;
+  bgCtx.beginPath(); bgCtx.moveTo(legendX, legendY2); bgCtx.lineTo(legendX + 18, legendY2); bgCtx.stroke();
+  bgCtx.fillStyle = "#34D399";
+  bgCtx.fillText("F2", legendX + 24, legendY2);
 
-  // 3段目: Δ(F3 - F2)
+  // --- 第3段: Δ(F3 - F2) (アンバーゴールド) ---
   const p3 = panels[2];
   const dMin = 0, dMax = 2500;
   [0, 500, 1000, 1500, 2000, 2500].forEach(hz => {{
     const y = valToY(hz, dMin, dMax, p3);
-    bgCtx.strokeStyle = "#E2E8F0"; bgCtx.lineWidth = 1.5;
+    bgCtx.strokeStyle = "#172033"; bgCtx.lineWidth = 1.0;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
-    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 2;
-    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 6, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
+    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
-    bgCtx.fillText(hz.toString(), MARGIN.left - 10, y);
+    bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
+  // R Target 破線 (1000Hz)
   const yTarget = valToY(1000, dMin, dMax, p3);
   bgCtx.save();
-  bgCtx.strokeStyle = "#64748B"; bgCtx.lineWidth = 2; bgCtx.setLineDash([8, 6]);
+  bgCtx.strokeStyle = "#64748B"; bgCtx.lineWidth = 1.5; bgCtx.setLineDash([6, 5]);
   bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, yTarget); bgCtx.lineTo(W - MARGIN.right, yTarget); bgCtx.stroke();
   bgCtx.restore();
-  bgCtx.font = "18px Arial, Helvetica, sans-serif";
-  bgCtx.fillStyle = "#475569"; bgCtx.textAlign = "right"; bgCtx.textBaseline = "bottom";
-  bgCtx.fillText("R Target (<1000Hz)", W - MARGIN.right - 6, yTarget - 4);
+  bgCtx.font = "14px sans-serif";
+  bgCtx.fillStyle = "#94A3B8"; bgCtx.textAlign = "right"; bgCtx.textBaseline = "bottom";
+  bgCtx.fillText("R Target (<1000Hz)", W - MARGIN.right - 6, yTarget - 3);
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p3.top, plotW, p3.height); bgCtx.clip();
-  drawSeries(D.times, D.delta, dMin, dMax, p3, "#0F172A", 4.0);
+  drawSeries(D.times, D.delta, dMin, dMax, p3, "#F59E0B", 3.5);
   bgCtx.restore();
 
   // 枠線
   panels.forEach(p => {{
-    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 2;
+    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath();
     bgCtx.moveTo(MARGIN.left, p.top);
     bgCtx.lineTo(MARGIN.left, p.bottom);
@@ -453,15 +474,15 @@ function drawBackground() {{
   }});
 
   // Y軸タイトル
-  bgCtx.fillStyle = "#0F172A";
-  bgCtx.font = "bold 22px Arial, Helvetica, sans-serif";
-  drawRotatedLabel("Waveform", 32, (p1.top + p1.bottom) / 2);
-  drawRotatedLabel("F3 / F2 (Hz)", 32, (p2.top + p2.bottom) / 2);
-  drawRotatedLabel("Δ(F3 - F2) (Hz)", 32, (p3.top + p3.bottom) / 2);
+  bgCtx.fillStyle = "#CBD5E1";
+  bgCtx.font = "bold 16px -apple-system, sans-serif";
+  drawRotatedLabel("Waveform", 28, (p1.top + p1.bottom) / 2);
+  drawRotatedLabel("F3 / F2 (Hz)", 28, (p2.top + p2.bottom) / 2);
+  drawRotatedLabel("Δ(F3 - F2)", 28, (p3.top + p3.bottom) / 2);
 
   // X軸タイトル
   bgCtx.textAlign = "center"; bgCtx.textBaseline = "bottom";
-  bgCtx.fillText("Time (s)", MARGIN.left + plotW / 2, H - 4);
+  bgCtx.fillText("Time (s)", MARGIN.left + plotW / 2, H - 2);
 }}
 
 function drawSeries(times, values, vMin, vMax, panel, color, width) {{
@@ -494,12 +515,12 @@ function drawOverlay() {{
   const topY = panels[0].top;
   const botY = panels[2].bottom;
 
-  // 範囲選択ハイライト
+  // 選択ハイライト（ネオンシアンの半透明ベール）
   if (Math.abs(selEnd - selStart) > 0.005) {{
     const sx = tToX(Math.min(selStart, selEnd));
     const ex = tToX(Math.max(selStart, selEnd));
 
-    ovCtx.fillStyle = "rgba(224, 242, 254, 0.60)";
+    ovCtx.fillStyle = "rgba(14, 165, 233, 0.20)";
     ovCtx.fillRect(sx, topY, ex - sx, botY - topY);
 
     ovCtx.strokeStyle = "#38BDF8";
@@ -510,21 +531,22 @@ function drawOverlay() {{
     ovCtx.stroke();
   }}
 
-  // 赤色縦カーソル
+  // クリムゾンレッド縦カーソル
   const cx = tToX(cursorT);
-  ovCtx.strokeStyle = "#EF4444";
-  ovCtx.lineWidth = 2.5;
+  ovCtx.strokeStyle = "#F43F5E";
+  ovCtx.lineWidth = 2.0;
   ovCtx.beginPath();
   ovCtx.moveTo(cx, topY);
   ovCtx.lineTo(cx, botY);
   ovCtx.stroke();
 
-  ovCtx.fillStyle = "#EF4444";
+  // カーソルつまみ
+  ovCtx.fillStyle = "#F43F5E";
   ovCtx.beginPath();
-  ovCtx.moveTo(cx - 7, topY); ovCtx.lineTo(cx + 7, topY); ovCtx.lineTo(cx, topY + 10); ovCtx.closePath();
+  ovCtx.moveTo(cx - 6, topY); ovCtx.lineTo(cx + 6, topY); ovCtx.lineTo(cx, topY + 8); ovCtx.closePath();
   ovCtx.fill();
   ovCtx.beginPath();
-  ovCtx.moveTo(cx - 7, botY); ovCtx.lineTo(cx + 7, botY); ovCtx.lineTo(cx, botY - 10); ovCtx.closePath();
+  ovCtx.moveTo(cx - 6, botY); ovCtx.lineTo(cx + 6, botY); ovCtx.lineTo(cx, botY - 8); ovCtx.closePath();
   ovCtx.fill();
 
   let idx = D.times.findIndex(t => t >= cursorT);
@@ -679,10 +701,9 @@ drawOverlay();
 </html>
 """
 
-# 表示対象の音声データがあれば解析・描画
 if st.session_state.current_audio_bytes is not None:
     if st.session_state.current_label:
-        st.caption(f"📊 表示中: **{st.session_state.current_label}**")
+        st.markdown(f"<span style='color:#38BDF8; font-weight:bold;'>📊 表示中: {st.session_state.current_label}</span>", unsafe_allow_html=True)
     scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
     html_code = build_spike2_html(scope_data)
-    components.html(html_code, height=860, scrolling=False)
+    components.html(html_code, height=640, scrolling=False)

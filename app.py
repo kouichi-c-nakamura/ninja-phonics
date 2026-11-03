@@ -10,19 +10,21 @@ import os
 
 st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide", initial_sidebar_state="collapsed")
 
-# 画面全体をスクロール不要な1ビューに収めるためのCSS
+# 画面パディングとスタイル調整（タイトルの上部見切れを解消）
 st.markdown("""
 <style>
     .block-container {
-        padding-top: 0.8rem !important;
-        padding-bottom: 0.2rem !important;
+        padding-top: 1.8rem !important;
+        padding-bottom: 0.5rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
     }
     h1 {
         font-size: 1.6rem !important;
-        margin-bottom: 0.4rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.5rem !important;
         color: #F8FAFC !important;
+        line-height: 1.3 !important;
     }
     div[data-testid="stAudioInput"] {
         background: #1E293B;
@@ -44,13 +46,14 @@ st.markdown("""
     }
     .stButton button:hover {
         background-color: #334155 !important;
-        border-color: #38BDF8 !important;
-        color: #38BDF8 !important;
+        border-color: #64748B !important;
+        color: #FFFFFF !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🥷 NinjaPhonetics: Biofeedback Scope")
+# 絵文字なしのクリーンなタイトル
+st.title("NinjaPhonetics")
 
 if "current_audio_bytes" not in st.session_state:
     st.session_state.current_audio_bytes = None
@@ -62,11 +65,55 @@ if "last_recorded_bytes" not in st.session_state:
 # --- お手本音声プリセット設定 ---
 PRESET_DIR = "presets"
 PRESETS = [
-    {"label": "🇺🇸 Right (US)", "file": "right_us.wav"},
-    {"label": "🇬🇧 Right (UK)", "file": "right_uk.wav"},
-    {"label": "🇬🇧 Light (UK)", "file": "light_uk.wav"},
-    {"label": "⚪ White (UK)", "file": "white_uk.wav"},
-    {"label": "🇯🇵 ライト (JP)", "file": "raito_jp.wav"},
+    {
+        "label": "Right (US)",
+        "file": "right_us.wav",
+        "title": "Right /raɪt/ (US)",
+        "phonetics": "/r/ のくびれ (谷)",
+        "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。"
+    },
+    {
+        "label": "Right (UK)",
+        "file": "right_uk.wav",
+        "title": "Right /raɪt/ (UK)",
+        "phonetics": "/r/ の狭窄",
+        "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。その後の二重母音への移行部でF2が上昇します。"
+    },
+    {
+        "label": "Light (UK)",
+        "file": "light_uk.wav",
+        "title": "Light /laɪt/ (UK)",
+        "phonetics": "F3高域維持",
+        "desc": "語頭の/l/でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"
+    },
+    {
+        "label": "White (UK)",
+        "file": "white_uk.wav",
+        "title": "White /waɪt/ (UK)",
+        "phonetics": "円唇によるF2低下",
+        "desc": "語頭でF2が一時的に下がりますが、F3は下がらないため、差分ラインはRのようなくびれになりません。"
+    },
+    {
+        "label": "ライト (JP)",
+        "file": "raito_jp.wav",
+        "title": "日本語「ライト」/ɾaɪto/",
+        "phonetics": "タップ破裂と語尾母音付加",
+        "desc": "「ラ」で瞬間的な破裂が起き、語尾には英語の/t/にはない母音「オ」のホルマントが明瞭に残ります。"
+    },
+    {
+        "label": "Really",
+        "file": "really.wav",
+        "title": "Really /ˈrɪəli/",
+        "phonetics": "/r/ の谷から /l/ の山へ",
+        "desc": "前半の/r/で差分が1000Hz未満へ急降下した後、語中の/l/に向かってF3が2600Hz以上へ一気に上昇します。"
+    },
+    {
+        "label": "Very",
+        "file": "very.wav",
+        "title": "Very /ˈveri/",
+        "phonetics": "有声摩擦 /v/ から /r/ のくびれへ",
+        "desc": "語頭の/v/の周期的な振動を持続させたまま、後続の/r/でF3が急激に引きずり下ろされます。"
+    }
 ]
 
 cols = st.columns(len(PRESETS))
@@ -86,7 +133,7 @@ for idx, col in enumerate(cols):
             st.warning(f"`{file_path}` が見つかりません。")
 
 # マイク入力
-audio_input = st.audio_input("🎙️ または自分の声を録音して解析")
+audio_input = st.audio_input("または自分の声を録音して解析")
 if not preset_clicked and audio_input is not None:
     new_bytes = audio_input.read()
     if new_bytes != st.session_state.last_recorded_bytes:
@@ -149,22 +196,18 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
     else:
         x_min, x_max = 0.0, float(snd.duration)
 
-    # --- スペクトログラム（500Hz〜3200Hz）の抽出とグレースケール量子化 ---
     spec = snd.to_spectrogram(window_length=0.005, maximum_frequency=3500.0, time_step=0.003, frequency_step=25.0)
     spec_vals = 10.0 * np.log10(np.maximum(spec.values, 1e-12))
     spec_t = spec.xs()
     spec_f = spec.ys()
 
-    # 時間軸 (x_min 〜 x_max) と 周波数軸 (500 〜 3200Hz) でスライス
     t_mask = (spec_t >= x_min) & (spec_t <= x_max)
     f_mask = (spec_f >= 500.0) & (spec_f <= 3200.0)
 
     if np.any(t_mask) and np.any(f_mask):
         sub_spec = spec_vals[np.ix_(f_mask, t_mask)]
-        # 上下が [3200Hz -> 500Hz] になるよう周波数軸を反転（Canvasの上から下へ描画するため）
         sub_spec = np.flipud(sub_spec)
         max_db = np.max(sub_spec)
-        # ダイナミックレンジ 45dB で [0, 255] に正規化
         dynamic_range = 45.0
         norm_spec = np.clip((sub_spec - (max_db - dynamic_range)) / dynamic_range, 0.0, 1.0)
         spec_u8 = (norm_spec * 255).astype(np.uint8)
@@ -220,6 +263,7 @@ def build_spike2_html(data: dict) -> str:
     border: 1px solid #1E293B; border-radius: 8px 8px 0 0;
   }}
   button {{
+    font-family: inherit;
     font-size: 15px; font-weight: bold;
     padding: 8px 16px; border-radius: 6px;
     border: 1px solid #334155; cursor: pointer;
@@ -227,20 +271,33 @@ def build_spike2_html(data: dict) -> str:
     transition: all 0.15s;
     white-space: nowrap;
   }}
-  button.primary {{ background: #2563EB; color: white; border-color: #3B82F6; }}
-  button.primary:hover {{ background: #1D4ED8; }}
-  button.toggle-on {{ background: #0F766E; color: #CCFBF1; border-color: #14B8A6; }}
-  button:hover {{ background: #334155; color: white; }}
+  button:hover {{ background: #334155; color: #FFFFFF; }}
   
+  button.btn-play-ready {{
+    background: #16A34A; color: #FFFFFF; border-color: #15803D;
+  }}
+  button.btn-play-ready:hover {{
+    background: #15803D;
+  }}
+  button.btn-play-active {{
+    background: #DC2626; color: #FFFFFF; border-color: #B91C1C;
+  }}
+  
+  button.toggle-active {{
+    background: #334155; color: #F8FAFC; border-color: #64748B;
+  }}
+
   select {{
+    font-family: inherit;
     font-size: 15px; padding: 6px 10px;
     border-radius: 6px; border: 1px solid #334155;
     background: #1E293B; color: #E2E8F0;
     font-weight: bold;
   }}
   .readout {{
-    font-size: 16px; font-weight: bold; margin-left: auto;
-    font-variant-numeric: tabular-nums; color: #38BDF8;
+    font-family: inherit;
+    font-size: 15px; font-weight: 500; margin-left: auto;
+    font-variant-numeric: tabular-nums; color: #E2E8F0;
     white-space: nowrap;
   }}
   #scope-wrapper {{
@@ -260,15 +317,15 @@ def build_spike2_html(data: dict) -> str:
 <body>
 
 <div class="toolbar">
-  <button id="btn-play" class="primary">▶ Play (Space)</button>
+  <button id="btn-play" class="btn-play-ready">▶ Play (Space)</button>
   <button id="btn-reset">⏮ 全体選択</button>
-  <button id="btn-spec" class="toggle-on">🌫️ Spectrogram: ON</button>
-  <label style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px; color: #94A3B8;">
+  <button id="btn-spec" class="toggle-active">Spectrogram: ON</button>
+  <label style="font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; color: #94A3B8;">
     Speed:
     <select id="sel-rate">
-      <option value="1.0">1.0x (標準)</option>
-      <option value="0.7">0.7x (スロー)</option>
-      <option value="0.5">0.5x (極スロー)</option>
+      <option value="1.0">1.0x</option>
+      <option value="0.7">0.7x</option>
+      <option value="0.5">0.5x</option>
     </select>
   </label>
   <div class="readout" id="time-readout">Cursor: 0.000 s</div>
@@ -304,7 +361,6 @@ let selEnd = xMax;
 let cursorT = (xMin + xMax) / 2;
 let showSpec = true;
 
-// スペクトログラムのオフスクリーンCanvas生成
 let specCanvas = null;
 if (D.spec_w > 0 && D.spec_h > 0 && D.spec_b64) {{
   specCanvas = document.createElement('canvas');
@@ -316,12 +372,11 @@ if (D.spec_w > 0 && D.spec_h > 0 && D.spec_b64) {{
   for (let i = 0; i < raw.length; i++) {{
     const val = raw.charCodeAt(i);
     const p = i * 4;
-    // ダークモード背景 (#090D16) に馴染むクールなグレースケール濃淡
-    // 強度が高いほど明るいシルバーブルーに発色
-    imgData.data[p]     = Math.min(255, 9 + val * 0.72);   // R
-    imgData.data[p + 1] = Math.min(255, 13 + val * 0.78);  // G
-    imgData.data[p + 2] = Math.min(255, 22 + val * 0.85);  // B
-    imgData.data[p + 3] = 255;                             // A
+    const gray = Math.min(255, 12 + val * 0.85);
+    imgData.data[p]     = gray;
+    imgData.data[p + 1] = gray;
+    imgData.data[p + 2] = gray;
+    imgData.data[p + 3] = 255;
   }}
   sCtx.putImageData(imgData, 0, 0);
 }}
@@ -394,7 +449,6 @@ function drawBackground() {{
   const p2 = panels[1];
   const p3 = panels[2];
 
-  // --- 第2段の背面にスペクトログラムを描画 (ONの場合) ---
   if (showSpec && specCanvas) {{
     bgCtx.save();
     bgCtx.beginPath();
@@ -406,8 +460,9 @@ function drawBackground() {{
     bgCtx.restore();
   }}
 
-  bgCtx.font = "14px monospace";
-  bgCtx.fillStyle = "#64748B";
+  const APP_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  bgCtx.font = "13px " + APP_FONT;
+  bgCtx.fillStyle = "#94A3B8";
 
   const durationSpan = xMax - xMin;
   const stepT = durationSpan <= 0.6 ? 0.05 : (durationSpan <= 1.5 ? 0.1 : 0.2);
@@ -417,7 +472,6 @@ function drawBackground() {{
     for (let t = firstTick; t <= xMax + 1e-6; t += stepT) {{
       const x = tToX(t);
 
-      // 暗色グリッド（スペクトログラム上でもうっすら見える透過白）
       bgCtx.strokeStyle = "rgba(148, 163, 184, 0.14)";
       bgCtx.lineWidth = 1.0;
       bgCtx.beginPath();
@@ -425,7 +479,6 @@ function drawBackground() {{
       bgCtx.lineTo(x, p.bottom);
       bgCtx.stroke();
 
-      // 外向き目盛り線
       bgCtx.strokeStyle = "#475569";
       bgCtx.lineWidth = 1.5;
       bgCtx.beginPath();
@@ -433,7 +486,6 @@ function drawBackground() {{
       bgCtx.lineTo(x, p.bottom + 5);
       bgCtx.stroke();
 
-      // 目盛り数値
       bgCtx.fillStyle = "#94A3B8";
       bgCtx.textAlign = "center";
       bgCtx.textBaseline = "top";
@@ -441,7 +493,7 @@ function drawBackground() {{
     }}
   }});
 
-  // --- 第1段: 生波形 (シアン発光) ---
+  // --- 第1段: 生波形 ---
   const waveMid = (p1.top + p1.bottom) / 2;
   bgCtx.strokeStyle = "#1E293B";
   bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, waveMid); bgCtx.lineTo(W - MARGIN.right, waveMid); bgCtx.stroke();
@@ -452,13 +504,14 @@ function drawBackground() {{
     const y = valToY(absVal, -maxAmp * 1.1, maxAmp * 1.1, p1);
     bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    bgCtx.fillStyle = "#94A3B8";
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
     bgCtx.fillText(relVal.toFixed(1), MARGIN.left - 8, y);
   }});
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p1.top, plotW, p1.height); bgCtx.clip();
-  bgCtx.strokeStyle = "#38BDF8";
+  bgCtx.strokeStyle = "#94A3B8";
   bgCtx.lineWidth = 1.5;
   bgCtx.beginPath();
   for (let i = 0; i < D.wave_t.length; i++) {{
@@ -469,7 +522,7 @@ function drawBackground() {{
   bgCtx.stroke();
   bgCtx.restore();
 
-  // --- 第2段: F3 / F2 (ブルー ＆ エメラルド) ---
+  // --- 第2段: F2 and F3 ---
   const fMin = 500, fMax = 3200;
   [1000, 1500, 2000, 2500, 3000].forEach(hz => {{
     const y = valToY(hz, fMin, fMax, p2);
@@ -477,35 +530,36 @@ function drawBackground() {{
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
     bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    bgCtx.fillStyle = "#94A3B8";
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
     bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
-  drawSeries(D.times, D.f3, fMin, fMax, p2, "#60A5FA", 3.2);
-  drawSeries(D.times, D.f2, fMin, fMax, p2, "#34D399", 3.2);
+  drawSeries(D.times, D.f3, fMin, fMax, p2, "#38BDF8", 3.0); // F3: スカイブルー
+  drawSeries(D.times, D.f2, fMin, fMax, p2, "#10B981", 3.0); // F2: グリーン復元
   bgCtx.restore();
 
-  // 凡例 (縦並び・半透明背景ボックス付きでスペクトログラム上でもくっきり)
+  // 中段 凡例
   const legendX = W - MARGIN.right - 82;
   const legendY1 = p2.top + 18;
   const legendY2 = p2.top + 38;
-  bgCtx.fillStyle = "rgba(9, 13, 22, 0.72)";
+  bgCtx.fillStyle = "rgba(9, 13, 22, 0.85)";
   bgCtx.fillRect(legendX - 8, p2.top + 6, 76, 44);
 
-  bgCtx.font = "bold 15px -apple-system, sans-serif";
-  bgCtx.strokeStyle = "#60A5FA"; bgCtx.lineWidth = 3.0;
+  bgCtx.font = "bold 14px " + APP_FONT;
+  bgCtx.strokeStyle = "#38BDF8"; bgCtx.lineWidth = 3.0;
   bgCtx.beginPath(); bgCtx.moveTo(legendX, legendY1); bgCtx.lineTo(legendX + 18, legendY1); bgCtx.stroke();
-  bgCtx.fillStyle = "#60A5FA"; bgCtx.textAlign = "left"; bgCtx.textBaseline = "middle";
+  bgCtx.fillStyle = "#38BDF8"; bgCtx.textAlign = "left"; bgCtx.textBaseline = "middle";
   bgCtx.fillText("F3", legendX + 24, legendY1);
 
-  bgCtx.strokeStyle = "#34D399"; bgCtx.lineWidth = 3.0;
+  bgCtx.strokeStyle = "#10B981"; bgCtx.lineWidth = 3.0;
   bgCtx.beginPath(); bgCtx.moveTo(legendX, legendY2); bgCtx.lineTo(legendX + 18, legendY2); bgCtx.stroke();
-  bgCtx.fillStyle = "#34D399";
+  bgCtx.fillStyle = "#10B981";
   bgCtx.fillText("F2", legendX + 24, legendY2);
 
-  // --- 第3段: Δ(F3 - F2) (アンバーゴールド) ---
+  // --- 第3段: Δ(F3 - F2) ---
   const dMin = 0, dMax = 2500;
   [0, 500, 1000, 1500, 2000, 2500].forEach(hz => {{
     const y = valToY(hz, dMin, dMax, p3);
@@ -513,6 +567,8 @@ function drawBackground() {{
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
     bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    // 下段の目盛り数値もすべて統一グレー
+    bgCtx.fillStyle = "#94A3B8";
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
     bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
@@ -520,17 +576,29 @@ function drawBackground() {{
   // R Target 破線 (1000Hz)
   const yTarget = valToY(1000, dMin, dMax, p3);
   bgCtx.save();
-  bgCtx.strokeStyle = "#64748B"; bgCtx.lineWidth = 1.5; bgCtx.setLineDash([6, 5]);
+  bgCtx.strokeStyle = "#EF4444"; bgCtx.lineWidth = 1.5; bgCtx.setLineDash([6, 5]);
   bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, yTarget); bgCtx.lineTo(W - MARGIN.right, yTarget); bgCtx.stroke();
   bgCtx.restore();
-  bgCtx.font = "14px sans-serif";
-  bgCtx.fillStyle = "#94A3B8"; bgCtx.textAlign = "right"; bgCtx.textBaseline = "bottom";
+  bgCtx.font = "13px " + APP_FONT;
+  bgCtx.fillStyle = "#EF4444"; bgCtx.textAlign = "right"; bgCtx.textBaseline = "bottom";
   bgCtx.fillText("R Target (<1000Hz)", W - MARGIN.right - 6, yTarget - 3);
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p3.top, plotW, p3.height); bgCtx.clip();
-  drawSeries(D.times, D.delta, dMin, dMax, p3, "#F59E0B", 3.5);
+  drawSeries(D.times, D.delta, dMin, dMax, p3, "#F59E0B", 3.2);
   bgCtx.restore();
+
+  // 下段 凡例（新設）
+  const leg3X = W - MARGIN.right - 145;
+  const leg3Y = p3.top + 18;
+  bgCtx.fillStyle = "rgba(9, 13, 22, 0.85)";
+  bgCtx.fillRect(leg3X - 8, p3.top + 6, 140, 26);
+
+  bgCtx.font = "bold 13px " + APP_FONT;
+  bgCtx.strokeStyle = "#F59E0B"; bgCtx.lineWidth = 3.0;
+  bgCtx.beginPath(); bgCtx.moveTo(leg3X, leg3Y); bgCtx.lineTo(leg3X + 18, leg3Y); bgCtx.stroke();
+  bgCtx.fillStyle = "#F59E0B"; bgCtx.textAlign = "left"; bgCtx.textBaseline = "middle";
+  bgCtx.fillText("Δ(F3 - F2)", leg3X + 24, leg3Y);
 
   // 枠線
   panels.forEach(p => {{
@@ -542,14 +610,15 @@ function drawBackground() {{
     bgCtx.stroke();
   }});
 
-  // Y軸タイトル
+  // Y軸タイトル（すべて落ち着いたグレーに統一）
+  bgCtx.font = "bold 15px " + APP_FONT;
   bgCtx.fillStyle = "#CBD5E1";
-  bgCtx.font = "bold 16px -apple-system, sans-serif";
   drawRotatedLabel("Waveform", 28, (p1.top + p1.bottom) / 2);
-  drawRotatedLabel("F3 / F2 (Hz)", 28, (p2.top + p2.bottom) / 2);
+  drawRotatedLabel("F2 and F3 (Hz)", 28, (p2.top + p2.bottom) / 2);
   drawRotatedLabel("Δ(F3 - F2)", 28, (p3.top + p3.bottom) / 2);
 
   // X軸タイトル
+  bgCtx.fillStyle = "#94A3B8";
   bgCtx.textAlign = "center"; bgCtx.textBaseline = "bottom";
   bgCtx.fillText("Time (s)", MARGIN.left + plotW / 2, H - 2);
 }}
@@ -588,11 +657,11 @@ function drawOverlay() {{
     const sx = tToX(Math.min(selStart, selEnd));
     const ex = tToX(Math.max(selStart, selEnd));
 
-    ovCtx.fillStyle = "rgba(14, 165, 233, 0.20)";
+    ovCtx.fillStyle = "rgba(255, 255, 255, 0.08)";
     ovCtx.fillRect(sx, topY, ex - sx, botY - topY);
 
-    ovCtx.strokeStyle = "#38BDF8";
-    ovCtx.lineWidth = 1.5;
+    ovCtx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+    ovCtx.lineWidth = 1.0;
     ovCtx.beginPath();
     ovCtx.moveTo(sx, topY); ovCtx.lineTo(sx, botY);
     ovCtx.moveTo(ex, topY); ovCtx.lineTo(ex, botY);
@@ -600,14 +669,14 @@ function drawOverlay() {{
   }}
 
   const cx = tToX(cursorT);
-  ovCtx.strokeStyle = "#F43F5E";
+  ovCtx.strokeStyle = "#EF4444";
   ovCtx.lineWidth = 2.0;
   ovCtx.beginPath();
   ovCtx.moveTo(cx, topY);
   ovCtx.lineTo(cx, botY);
   ovCtx.stroke();
 
-  ovCtx.fillStyle = "#F43F5E";
+  ovCtx.fillStyle = "#EF4444";
   ovCtx.beginPath();
   ovCtx.moveTo(cx - 6, topY); ovCtx.lineTo(cx + 6, topY); ovCtx.lineTo(cx, topY + 8); ovCtx.closePath();
   ovCtx.fill();
@@ -616,22 +685,21 @@ function drawOverlay() {{
   ovCtx.fill();
 
   let idx = D.times.findIndex(t => t >= cursorT);
-  let info = `Cursor: ${{cursorT.toFixed(3)}} s`;
+  let html = `<span style="color:#94A3B8;">Cursor:</span> ${{cursorT.toFixed(3)}} s`;
   if (idx !== -1 && D.delta[idx] !== null) {{
-    info += `  |  F3: ${{D.f3[idx]}} Hz   F2: ${{D.f2[idx]}} Hz   Δ: ${{D.delta[idx]}} Hz`;
+    html += `  |  <span style="color:#38BDF8;">F3:</span> ${{D.f3[idx]}} Hz   <span style="color:#10B981;">F2:</span> ${{D.f2[idx]}} Hz   <span style="color:#F59E0B;">Δ:</span> ${{D.delta[idx]}} Hz`;
   }}
-  readout.textContent = info;
+  readout.innerHTML = html;
 }}
 
-// スペクトログラムの表示/非表示トグル
 btnSpec.addEventListener("click", () => {{
   showSpec = !showSpec;
   if (showSpec) {{
-    btnSpec.textContent = "🌫️ Spectrogram: ON";
-    btnSpec.classList.add("toggle-on");
+    btnSpec.textContent = "Spectrogram: ON";
+    btnSpec.classList.add("toggle-active");
   }} else {{
-    btnSpec.textContent = "🌫️ Spectrogram: OFF";
-    btnSpec.classList.remove("toggle-on");
+    btnSpec.textContent = "Spectrogram: OFF";
+    btnSpec.classList.remove("toggle-active");
   }}
   drawBackground();
 }});
@@ -655,7 +723,9 @@ function startPlayback() {{
   playStartWallTime = audioCtx.currentTime;
   playStartOffset = playFrom;
   isPlaying = true;
-  btnPlay.textContent = "⏸ Pause (Space)";
+
+  btnPlay.textContent = "⏹ Stop (Space)";
+  btnPlay.className = "btn-play-active";
 
   sourceNode.start(0, playFrom, playDuration);
   sourceNode.onended = () => {{
@@ -663,6 +733,7 @@ function startPlayback() {{
       isPlaying = false;
       cursorT = e;
       btnPlay.textContent = "▶ Play (Space)";
+      btnPlay.className = "btn-play-ready";
       drawOverlay();
     }}
   }};
@@ -690,6 +761,7 @@ function stopPlayback() {{
   if (animId) cancelAnimationFrame(animId);
   isPlaying = false;
   btnPlay.textContent = "▶ Play (Space)";
+  btnPlay.className = "btn-play-ready";
 }}
 
 btnPlay.addEventListener("click", () => {{
@@ -780,9 +852,39 @@ drawOverlay();
 </html>
 """
 
+# スコープ描画と解説カード
 if st.session_state.current_audio_bytes is not None:
     if st.session_state.current_label:
-        st.markdown(f"<span style='color:#38BDF8; font-weight:bold;'>📊 表示中: {st.session_state.current_label}</span>", unsafe_allow_html=True)
+        # 絵文字を廃止し、標準的なトーンの表示に変更
+        st.markdown(
+            f"<div style='color: #94A3B8; font-size: 0.95rem; margin-bottom: 4px;'>"
+            f"● 表示中: <span style='color: #F8FAFC; font-weight: 600;'>{st.session_state.current_label}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
     scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
     html_code = build_spike2_html(scope_data)
     components.html(html_code, height=640, scrolling=False)
+
+    # 下部解説枠（選択中のプリセットに合わせて表示）
+    info = next((p for p in PRESETS if p["label"] in st.session_state.current_label), None)
+    if info:
+        st.markdown(f"""
+        <div style="background: #0F172A; border: 1px solid #1E293B; border-left: 3px solid #64748B; border-radius: 6px; padding: 12px 18px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                <span style="font-size: 1.05rem; font-weight: 600; color: #F8FAFC;">{info['title']}</span>
+                <span style="font-size: 0.85rem; font-weight: 500; color: #94A3B8; background: #1E293B; padding: 2px 8px; border-radius: 4px; border: 1px solid #334155;">{info['phonetics']}</span>
+            </div>
+            <p style="font-size: 0.9rem; color: #94A3B8; margin: 0; line-height: 1.5;">{info['desc']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    elif "あなたの発音" in st.session_state.current_label:
+        st.markdown("""
+        <div style="background: #0F172A; border: 1px solid #1E293B; border-left: 3px solid #64748B; border-radius: 6px; padding: 12px 18px; margin-top: 10px;">
+            <span style="font-size: 1.05rem; font-weight: 600; color: #F8FAFC;">判定ガイド</span>
+            <p style="font-size: 0.9rem; color: #94A3B8; margin: 4px 0 0 0; line-height: 1.5;">
+                ・<b>/r/ の判定</b>: 語頭で黄色い線（Δ）が破線（1000Hz）を下回る深い谷を作っていれば成功です。<br>
+                ・<b>/l/ の判定</b>: 青い線（F3）が高い位置（2500Hz以上）にとどまり、黄色い線が破線を割らなければクリアです。
+            </p>
+        </div>
+        """, unsafe_allow_html=True)

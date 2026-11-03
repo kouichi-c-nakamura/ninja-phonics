@@ -1,46 +1,47 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import sounddevice as sd
-import soundfile as sf
 import parselmouth
+import soundfile as sf
 import numpy as np
 import base64
 import json
+import io
 
-st.set_page_config(page_title="NinjaPhonetics - Spike2 Viewer", layout="wide")
+st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide")
 
+# モダンなデザインのまま、ボタンサイズを大幅拡大（約4倍のクリック面積）するカスタムCSS
 st.markdown("""
 <style>
-    .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+    .block-container { padding-top: 1.2rem; padding-bottom: 1rem; }
+    
+    /* Streamlit標準の音声録音ウィジェットを大型化 */
+    div[data-testid="stAudioInput"] {
+        background: #F8FAFC;
+        border: 2px solid #CBD5E1;
+        border-radius: 12px;
+        padding: 12px 18px;
+    }
+    div[data-testid="stAudioInput"] button {
+        transform: scale(1.3);
+        margin: 8px 16px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🥷 NinjaPhonetics: Spike2 Biofeedback Scope")
+st.title("🥷 NinjaPhonetics: Biofeedback Scope")
 
-if "wav_path" not in st.session_state:
-    st.session_state.wav_path = "temp_spike2.wav"
-if "recorded" not in st.session_state:
-    st.session_state.recorded = False
-
-# --- 録音コントロール ---
-col1, col2 = st.columns([1, 4])
-with col1:
-    if st.button("🎙️ 2秒間 録音開始", type="primary", use_container_width=True):
-        duration = 2.0
-        sr = 44100
-        with st.spinner("録音中... 発音してください"):
-            audio = sd.rec(int(duration * sr), samplerate=sr, channels=1, dtype="float32")
-            sd.wait()
-            sf.write(st.session_state.wav_path, audio, sr)
-            st.session_state.recorded = True
-        st.rerun()
-
-with col2:
-    st.info("💡 **操作方法**: **赤線（カーソル）を直接ドラッグ** して位置調整 | **背景をドラッグ** して区間選択 | **Spaceキー** で再生/一時停止")
+# 音声入力（ブラウザ標準のマイク機能：スマホ・PC対応）
+audio_input = st.audio_input("🎙️ 音声を録音してください（発音後、再度押すと停止して解析されます）")
 
 
-def extract_scope_data(wav_path: str, max_formant_hz: float = 5000.0):
-    snd = parselmouth.Sound(wav_path)
+def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 5000.0):
+    audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
+
+    if audio_data.ndim > 1:
+        audio_data = np.mean(audio_data, axis=1)
+
+    snd = parselmouth.Sound(audio_data.astype(np.float64), sampling_frequency=float(sample_rate))
+
     pitch = snd.to_pitch()
     formant = snd.to_formant_burg(time_step=0.005, max_number_of_formants=5.0, maximum_formant=max_formant_hz)
     intensity = snd.to_intensity()
@@ -76,12 +77,11 @@ def extract_scope_data(wav_path: str, max_formant_hz: float = 5000.0):
 
     raw_samples = snd.values[0]
     raw_times = np.linspace(0, snd.duration, len(raw_samples))
-    step = max(1, len(raw_samples) // 2000)
+    step = max(1, len(raw_samples) // 3000)
     wave_t = np.round(raw_times[::step], 4).tolist()
     wave_y = np.round(raw_samples[::step], 4).tolist()
 
-    with open(wav_path, "rb") as f:
-        wav_b64 = base64.b64encode(f.read()).decode("utf-8")
+    wav_b64 = base64.b64encode(audio_bytes).decode("utf-8")
 
     return {
         "duration": float(snd.duration),
@@ -111,14 +111,16 @@ def build_spike2_html(data: dict) -> str:
     user-select: none;
   }}
   .toolbar {{
-    display: flex; align-items: center; gap: 14px;
-    padding: 12px 18px; background: #F8FAFC;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px; background: #F8FAFC;
     border: 2px solid #CBD5E1; border-radius: 8px 8px 0 0;
   }}
+  
+  /* ボタン大型化（フォント22px、パディング拡大で押しやすくモダンに） */
   button {{
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 18px; font-weight: bold;
-    padding: 8px 18px; border-radius: 6px;
+    font-size: 22px; font-weight: bold;
+    padding: 12px 26px; border-radius: 8px;
     border: 2px solid #334155; cursor: pointer;
     background: #FFFFFF; color: #0F172A;
     transition: all 0.15s;
@@ -126,9 +128,10 @@ def build_spike2_html(data: dict) -> str:
   button.primary {{ background: #2563EB; color: white; border-color: #1D4ED8; }}
   button.primary:hover {{ background: #1D4ED8; }}
   button:hover {{ background: #E2E8F0; }}
+  
   select {{
-    font-size: 18px; padding: 6px 10px;
-    border-radius: 6px; border: 2px solid #334155;
+    font-size: 20px; padding: 10px 14px;
+    border-radius: 8px; border: 2px solid #334155;
     font-family: Arial, Helvetica, sans-serif; font-weight: bold;
   }}
   .readout {{
@@ -136,7 +139,7 @@ def build_spike2_html(data: dict) -> str:
     font-variant-numeric: tabular-nums; color: #1E293B;
   }}
   #scope-wrapper {{
-    position: relative; width: 100%; height: 680px;
+    position: relative; width: 100%; height: 780px;
     border: 2px solid #334155; border-top: none;
     background: #FFFFFF;
   }}
@@ -151,7 +154,8 @@ def build_spike2_html(data: dict) -> str:
 <div class="toolbar">
   <button id="btn-play" class="primary">▶ Play (Space)</button>
   <button id="btn-reset">⏮ 全体選択に戻す</button>
-  <label style="font-size: 18px; font-weight: bold;">Speed:
+  <label style="font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+    Speed:
     <select id="sel-rate">
       <option value="1.0">1.0x (標準)</option>
       <option value="0.7">0.7x (スロー)</option>
@@ -180,8 +184,8 @@ const btnReset = document.getElementById('btn-reset');
 const selRate = document.getElementById('sel-rate');
 const readout = document.getElementById('time-readout');
 
-const MARGIN = {{ left: 120, right: 40, top: 25, bottom: 60 }};
-let W = 1000, H = 680;
+const MARGIN = {{ left: 130, right: 40, top: 25, bottom: 65 }};
+let W = 1000, H = 780;
 
 let xMin = D.x_min;
 let xMax = D.x_max;
@@ -219,11 +223,12 @@ function xToT(x) {{
 
 function getPanels() {{
   const totalH = H - MARGIN.top - MARGIN.bottom;
-  const gap = 24;
-  const availH = totalH - gap * 2;
-  const h1 = availH * 0.22;
-  const h2 = availH * 0.39;
-  const h3 = availH * 0.39;
+  const gap = 38;
+  const h1 = 170;
+  const remainH = totalH - h1 - (gap * 2);
+  const h2 = remainH * 0.50;
+  const h3 = remainH * 0.50;
+
   const y1 = MARGIN.top;
   const y2 = y1 + h1 + gap;
   const y3 = y2 + h2 + gap;
@@ -251,52 +256,63 @@ function drawBackground() {{
   const panels = getPanels();
   const plotW = W - MARGIN.left - MARGIN.right;
 
-  bgCtx.font = "20px Arial, Helvetica, sans-serif";
+  bgCtx.font = "18px Arial, Helvetica, sans-serif";
   bgCtx.fillStyle = "#0F172A";
 
   const durationSpan = xMax - xMin;
   const stepT = durationSpan <= 0.6 ? 0.05 : (durationSpan <= 1.5 ? 0.1 : 0.2);
   const firstTick = Math.ceil(xMin / stepT) * stepT;
 
-  panels.forEach((p, idx) => {{
-    bgCtx.strokeStyle = "#E2E8F0";
-    bgCtx.lineWidth = 1.5;
+  // 1段目・2段目・3段目のすべてに目盛り（外向き）とグリッドを描画
+  panels.forEach((p) => {{
     for (let t = firstTick; t <= xMax + 1e-6; t += stepT) {{
       const x = tToX(t);
+
+      // グリッド線
+      bgCtx.strokeStyle = "#E2E8F0";
+      bgCtx.lineWidth = 1.5;
       bgCtx.beginPath();
       bgCtx.moveTo(x, p.top);
       bgCtx.lineTo(x, p.bottom);
       bgCtx.stroke();
 
-      if (idx === 2) {{
-        bgCtx.strokeStyle = "#334155";
-        bgCtx.lineWidth = 2;
-        bgCtx.beginPath();
-        bgCtx.moveTo(x, p.bottom);
-        bgCtx.lineTo(x, p.bottom + 6);
-        bgCtx.stroke();
+      // 目盛り線（外向きに6px）
+      bgCtx.strokeStyle = "#334155";
+      bgCtx.lineWidth = 2;
+      bgCtx.beginPath();
+      bgCtx.moveTo(x, p.bottom);
+      bgCtx.lineTo(x, p.bottom + 6);
+      bgCtx.stroke();
 
-        bgCtx.textAlign = "center";
-        bgCtx.textBaseline = "top";
-        bgCtx.fillText(t.toFixed(2), x, p.bottom + 10);
-        bgCtx.strokeStyle = "#E2E8F0";
-        bgCtx.lineWidth = 1.5;
-      }}
+      // 目盛り数値
+      bgCtx.fillStyle = "#0F172A";
+      bgCtx.textAlign = "center";
+      bgCtx.textBaseline = "top";
+      bgCtx.fillText(t.toFixed(2), x, p.bottom + 8);
     }}
   }});
 
-  // 1段目: 生波形
+  // --- 第1段: 生波形 ---
   const p1 = panels[0];
   const waveMid = (p1.top + p1.bottom) / 2;
   bgCtx.strokeStyle = "#CBD5E1";
   bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, waveMid); bgCtx.lineTo(W - MARGIN.right, waveMid); bgCtx.stroke();
 
+  const maxAmp = Math.max(...D.wave_y.map(Math.abs), 0.05);
+  [-1.0, 0.0, 1.0].forEach(relVal => {{
+    const absVal = relVal * maxAmp;
+    const y = valToY(absVal, -maxAmp * 1.1, maxAmp * 1.1, p1);
+    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 2;
+    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 6, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
+    bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
+    bgCtx.fillText(relVal.toFixed(1), MARGIN.left - 10, y);
+  }});
+
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p1.top, plotW, p1.height); bgCtx.clip();
-  bgCtx.strokeStyle = "#475569";
+  bgCtx.strokeStyle = "#334155";
   bgCtx.lineWidth = 1.5;
   bgCtx.beginPath();
-  const maxAmp = Math.max(...D.wave_y.map(Math.abs), 0.05);
   for (let i = 0; i < D.wave_t.length; i++) {{
     const x = tToX(D.wave_t[i]);
     const y = valToY(D.wave_y[i], -maxAmp * 1.1, maxAmp * 1.1, p1);
@@ -305,7 +321,7 @@ function drawBackground() {{
   bgCtx.stroke();
   bgCtx.restore();
 
-  // 2段目: F3 / F2
+  // --- 第2段: F3 / F2 ---
   const p2 = panels[1];
   const fMin = 500, fMax = 3200;
   [1000, 1500, 2000, 2500, 3000].forEach(hz => {{
@@ -324,10 +340,10 @@ function drawBackground() {{
   drawSeries(D.times, D.f2, fMin, fMax, p2, "#059669", 3.5);
   bgCtx.restore();
 
-  // 3段目: Δ(F3 - F2)
+  // --- 第3段: Δ(F3 - F2) [0, 2500] ---
   const p3 = panels[2];
-  const dMin = 0, dMax = 1800;
-  [0, 500, 1000, 1500].forEach(hz => {{
+  const dMin = 0, dMax = 2500;
+  [0, 500, 1000, 1500, 2000, 2500].forEach(hz => {{
     const y = valToY(hz, dMin, dMax, p3);
     bgCtx.strokeStyle = "#E2E8F0"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
@@ -351,6 +367,7 @@ function drawBackground() {{
   drawSeries(D.times, D.delta, dMin, dMax, p3, "#0F172A", 4.0);
   bgCtx.restore();
 
+  // 枠線
   panels.forEach(p => {{
     bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 2;
     bgCtx.beginPath();
@@ -360,14 +377,16 @@ function drawBackground() {{
     bgCtx.stroke();
   }});
 
+  // Y軸タイトル
   bgCtx.fillStyle = "#0F172A";
   bgCtx.font = "bold 22px Arial, Helvetica, sans-serif";
-  drawRotatedLabel("Waveform", 28, (p1.top + p1.bottom) / 2);
-  drawRotatedLabel("F3 / F2 (Hz)", 28, (p2.top + p2.bottom) / 2);
-  drawRotatedLabel("Δ(F3 - F2) (Hz)", 28, (p3.top + p3.bottom) / 2);
+  drawRotatedLabel("Waveform", 32, (p1.top + p1.bottom) / 2);
+  drawRotatedLabel("F3 / F2 (Hz)", 32, (p2.top + p2.bottom) / 2);
+  drawRotatedLabel("Δ(F3 - F2) (Hz)", 32, (p3.top + p3.bottom) / 2);
 
+  // X軸タイトル
   bgCtx.textAlign = "center"; bgCtx.textBaseline = "bottom";
-  bgCtx.fillText("Time (s)", MARGIN.left + plotW / 2, H - 6);
+  bgCtx.fillText("Time (s)", MARGIN.left + plotW / 2, H - 4);
 }}
 
 function drawSeries(times, values, vMin, vMax, panel, color, width) {{
@@ -400,7 +419,6 @@ function drawOverlay() {{
   const topY = panels[0].top;
   const botY = panels[2].bottom;
 
-  // 範囲選択の薄黄色ハイライト
   if (Math.abs(selEnd - selStart) > 0.005) {{
     const sx = tToX(Math.min(selStart, selEnd));
     const ex = tToX(Math.max(selStart, selEnd));
@@ -415,7 +433,6 @@ function drawOverlay() {{
     ovCtx.stroke();
   }}
 
-  // Spike2 赤色同期縦カーソル
   const cx = tToX(cursorT);
   ovCtx.strokeStyle = "#EF4444";
   ovCtx.lineWidth = 2.5;
@@ -424,7 +441,6 @@ function drawOverlay() {{
   ovCtx.lineTo(cx, botY);
   ovCtx.stroke();
 
-  // カーソルつまみ（上部と下部に小さな赤い三角マークを描画して掴めることを明示）
   ovCtx.fillStyle = "#EF4444";
   ovCtx.beginPath();
   ovCtx.moveTo(cx - 7, topY); ovCtx.lineTo(cx + 7, topY); ovCtx.lineTo(cx, topY + 10); ovCtx.closePath();
@@ -433,7 +449,6 @@ function drawOverlay() {{
   ovCtx.moveTo(cx - 7, botY); ovCtx.lineTo(cx + 7, botY); ovCtx.lineTo(cx, botY - 10); ovCtx.closePath();
   ovCtx.fill();
 
-  // デジタル数値の更新
   let idx = D.times.findIndex(t => t >= cursorT);
   let info = `Cursor: ${{cursorT.toFixed(3)}} s`;
   if (idx !== -1 && D.delta[idx] !== null) {{
@@ -442,7 +457,6 @@ function drawOverlay() {{
   readout.textContent = info;
 }}
 
-// --- 再生エンジン ---
 function startPlayback() {{
   if (!audioBuffer) return;
   if (audioCtx.state === "suspended") audioCtx.resume();
@@ -512,7 +526,6 @@ btnReset.addEventListener("click", () => {{
   drawOverlay();
 }});
 
-// --- キーボードショートカット (Spaceキー) ---
 window.addEventListener("keydown", (e) => {{
   if (e.code === "Space" && e.target === document.body) {{
     e.preventDefault();
@@ -521,13 +534,10 @@ window.addEventListener("keydown", (e) => {{
   }}
 }});
 
-// --- インタラクティブ・マウス操作（カーソル直接ドラッグ ＆ 範囲ドラッグ） ---
-let dragMode = "none"; // "cursor" (カーソル掴み) | "select" (範囲選択)
-
-// カーソル直上（左右10px以内）にいるか判定
+let dragMode = "none";
 function isNearCursor(mouseX) {{
   const cx = tToX(cursorT);
-  return Math.abs(mouseX - cx) <= 10;
+  return Math.abs(mouseX - cx) <= 12;
 }}
 
 ovCanvas.addEventListener("mousemove", (e) => {{
@@ -535,18 +545,12 @@ ovCanvas.addEventListener("mousemove", (e) => {{
   const mouseX = e.clientX - rect.left;
 
   if (dragMode === "none") {{
-    // ホバー時にカーソル直上なら左右矢印アイコン(↔)にする
-    if (isNearCursor(mouseX)) {{
-      ovCanvas.style.cursor = "ew-resize";
-    }} else {{
-      ovCanvas.style.cursor = "crosshair";
-    }}
+    if (isNearCursor(mouseX)) ovCanvas.style.cursor = "ew-resize";
+    else ovCanvas.style.cursor = "crosshair";
   }} else if (dragMode === "cursor") {{
-    // 赤線カーソルそのものを直接ドラッグ移動中
     cursorT = xToT(mouseX);
     drawOverlay();
   }} else if (dragMode === "select") {{
-    // 範囲ドラッグ中
     selEnd = xToT(mouseX);
     cursorT = selEnd;
     drawOverlay();
@@ -560,11 +564,9 @@ ovCanvas.addEventListener("mousedown", (e) => {{
   const clickT = xToT(mouseX);
 
   if (isNearCursor(mouseX)) {{
-    // 赤線を掴んだ場合
     dragMode = "cursor";
     ovCanvas.style.cursor = "ew-resize";
   }} else {{
-    // 背景をクリック・ドラッグした場合
     dragMode = "select";
     selStart = clickT;
     selEnd = clickT;
@@ -576,7 +578,6 @@ ovCanvas.addEventListener("mousedown", (e) => {{
 
 window.addEventListener("mouseup", () => {{
   if (dragMode === "select") {{
-    // 単なるクリック（ドラッグ距離が極小）なら範囲選択を全体に戻し、クリック位置にカーソルを移動
     if (Math.abs(selEnd - selStart) < 0.015) {{
       selStart = xMin;
       selEnd = xMax;
@@ -600,7 +601,8 @@ drawOverlay();
 </html>
 """
 
-if st.session_state.recorded:
-    scope_data = extract_scope_data(st.session_state.wav_path)
+if audio_input is not None:
+    audio_bytes = audio_input.read()
+    scope_data = extract_scope_data_from_bytes(audio_bytes)
     html_code = build_spike2_html(scope_data)
-    components.html(html_code, height=760, scrolling=False)
+    components.html(html_code, height=880, scrolling=False)

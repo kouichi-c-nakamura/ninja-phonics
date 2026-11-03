@@ -147,6 +147,10 @@ def build_spike2_html(data: dict) -> str:
     position: absolute; left: 0; top: 0;
     width: 100%; height: 100%;
   }}
+  /* 最前面の選択ハイライトを背面のプロット線と乗算合成し、線を一切隠さないようにする */
+  #overlay-canvas {{
+    mix-blend-mode: multiply;
+  }}
 </style>
 </head>
 <body>
@@ -333,6 +337,35 @@ function drawBackground() {{
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
     bgCtx.fillText(hz.toString(), MARGIN.left - 10, y);
   }});
+  
+  // --- F3 / F2 凡例（縦並び・右上） ---
+  const legendX = W - MARGIN.right - 95;
+  const legendY1 = p2.top + 22; // 1行目: F3
+  const legendY2 = p2.top + 48; // 2行目: F2
+  
+  bgCtx.font = "bold 18px Arial, Helvetica, sans-serif";
+
+  // 1行目: F3 (青)
+  bgCtx.strokeStyle = "#2563EB";
+  bgCtx.lineWidth = 3.5;
+  bgCtx.beginPath();
+  bgCtx.moveTo(legendX, legendY1);
+  bgCtx.lineTo(legendX + 22, legendY1);
+  bgCtx.stroke();
+  bgCtx.fillStyle = "#2563EB";
+  bgCtx.textAlign = "left";
+  bgCtx.textBaseline = "middle";
+  bgCtx.fillText("F3", legendX + 28, legendY1);
+
+  // 2行目: F2 (緑)
+  bgCtx.strokeStyle = "#059669";
+  bgCtx.lineWidth = 3.5;
+  bgCtx.beginPath();
+  bgCtx.moveTo(legendX, legendY2);
+  bgCtx.lineTo(legendX + 22, legendY2);
+  bgCtx.stroke();
+  bgCtx.fillStyle = "#059669";
+  bgCtx.fillText("F2", legendX + 28, legendY2);
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
@@ -419,14 +452,20 @@ function drawOverlay() {{
   const topY = panels[0].top;
   const botY = panels[2].bottom;
 
+  // 範囲選択ハイライト（薄い水色）
+  // 範囲選択ハイライト（極淡いアイスブルー #EFFAFF）
+  // 範囲選択ハイライト（#EFFAFF をプロット線の下に敷く上品なブレンド）
   if (Math.abs(selEnd - selStart) > 0.005) {{
     const sx = tToX(Math.min(selStart, selEnd));
     const ex = tToX(Math.max(selStart, selEnd));
-    ovCtx.fillStyle = "rgba(245, 158, 11, 0.18)";
+
+    // 線をくっきり見せる淡いスカイブルー（乗算ブレンドで線が100%透過）
+    ovCtx.fillStyle = "rgba(224, 242, 254, 0.55)"; 
     ovCtx.fillRect(sx, topY, ex - sx, botY - topY);
 
-    ovCtx.strokeStyle = "#D97706";
-    ovCtx.lineWidth = 2;
+    // 境界線
+    ovCtx.strokeStyle = "#7DD3FC";
+    ovCtx.lineWidth = 1.5;
     ovCtx.beginPath();
     ovCtx.moveTo(sx, topY); ovCtx.lineTo(sx, botY);
     ovCtx.moveTo(ex, topY); ovCtx.lineTo(ex, botY);

@@ -7,10 +7,11 @@ import base64
 import json
 import io
 import os
+import re
 
 st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide", initial_sidebar_state="collapsed")
 
-# 画面パディングとスタイル調整（タイトルの上部見切れを解消）
+# 画面パディングとスタイル調整
 st.markdown("""
 <style>
     .block-container {
@@ -41,8 +42,9 @@ st.markdown("""
         color: #E2E8F0 !important;
         border: 1px solid #475569 !important;
         font-weight: bold !important;
-        padding: 6px 10px !important;
+        padding: 6px 8px !important;
         border-radius: 6px !important;
+        font-size: 0.9rem !important;
     }
     .stButton button:hover {
         background-color: #334155 !important;
@@ -52,8 +54,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 絵文字なしのクリーンなタイトル
-st.title("NinjaPhonetics")
+st.title("NinjaPhonetics: Biofeedback Scope")
 
 if "current_audio_bytes" not in st.session_state:
     st.session_state.current_audio_bytes = None
@@ -61,6 +62,8 @@ if "current_label" not in st.session_state:
     st.session_state.current_label = ""
 if "last_recorded_bytes" not in st.session_state:
     st.session_state.last_recorded_bytes = None
+if "auto_play" not in st.session_state:
+    st.session_state.auto_play = False
 
 # --- お手本音声プリセット設定 ---
 PRESET_DIR = "presets"
@@ -70,70 +73,70 @@ PRESETS = [
         "file": "right_us.wav",
         "title": "Right /raɪt/ (US)",
         "phonetics": "/r/ のくびれ (谷)",
-        "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。"
+        "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。舌の両側面を上顎の奥歯に密着させることでこの深い谷が生まれます。"
     },
     {
         "label": "Right (UK)",
         "file": "right_uk.wav",
         "title": "Right /raɪt/ (UK)",
         "phonetics": "/r/ の狭窄",
-        "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。その後の二重母音への移行部でF2が上昇します。"
+        "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。その後の二重母音 /aɪ/ への移行部でF2が右肩上がりに上昇します。"
     },
-{
+    {
         "label": "Light (US)",
         "file": "light_us.wav",
         "title": "Light /laɪt/ (US)",
         "phonetics": "Dark L（軟口蓋化）による低F2・高Δ",
-        "desc": "米語の語頭 /l/ は奥舌が引かれるため（Dark L傾向）、開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に大きく開くのが特徴です。後半の母音 /aɪ/ で舌が前上に移動するにつれて F2 が急上昇していきます。"
+        "desc": "米語の語頭 /l/ は奥舌が引かれるため（Dark L傾向）、開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に大きく開くのが特徴です。"
     },
     {
         "label": "Light (UK)",
         "file": "light_uk.wav",
         "title": "Light /laɪt/ (UK)",
-        "phonetics": "F3高域維持",
-        "desc": "語頭の/l/でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"
+        "phonetics": "F3高域維持 (Clear L)",
+        "desc": "語頭の /l/ でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"
     },
     {
         "label": "White (UK)",
         "file": "white_uk.wav",
         "title": "White /waɪt/ (UK)",
         "phonetics": "円唇によるF2低下",
-        "desc": "語頭でF2が一時的に下がりますが、F3は下がらないため、差分ラインはRのようなくびれになりません。"
+        "desc": "語頭で唇を丸めるためF2が一時的に下がりますが、F3は下がらないため、差分ラインはRのようなくびれになりません。"
     },
     {
         "label": "ライト (JP)",
         "file": "raito_jp.wav",
         "title": "日本語「ライト」/ɾaɪto/",
         "phonetics": "タップ破裂と語尾母音付加",
-        "desc": "「ラ」で瞬間的な破裂が起き、語尾には英語の/t/にはない母音「オ」のホルマントが明瞭に残ります。"
+        "desc": "「ラ」で瞬間的な弾き音（破裂）が起き、語尾には英語の /t/ にはない母音「オ」のホルマントが明瞭に残ります。"
     },
-{
+    {
         "label": "Really (US)",
         "file": "really_us.wav",
         "title": "Really /ˈrɪli/ ~ /ˈriːli/ (US)",
-        "phonetics": "/r/ の深谷から /l/ の天井へのダイナミックジャンプ",
-        "desc": "語頭の /r/（0.35s付近）で青（F3）が緑（F2）へ沈み込み、黄色（Δ）が 500Hz 前後まで深く潜ります。そこから後半の /l/（0.50s以降）に向かって F3 が 3000Hz 超へ垂直に跳ね上がる『谷から山へ』のコントラストが米語の決定的な特徴です。"
+        "phonetics": "/r/ の深谷から /l/ の天井へのジャンプ",
+        "desc": "語頭の /r/ で青（F3）が緑（F2）へ沈み込み、黄色（Δ）が 500Hz 前後まで深く潜ります。そこから後半の /l/ に向かって F3 が 3000Hz 超へ跳ね上がるコントラストが特徴です。"
     },
-{
+    {
         "label": "Really (UK)",
         "file": "really_uk.wav",
         "title": "Really /ˈrɪəli/ (UK)",
         "phonetics": "センタリング二重母音を経由する滑らかな渡り",
-        "desc": "前半の /r/（0.45〜0.50s）でしっかり 1000Hz 破線を潜る谷を作ります。米語のように急激に跳ね上がるのではなく、イギリス英語特有の曖昧母音 /ə/ を挟みながら、後半の /l/ に向かって緩やかに F3 が立ち上がっていく滑らかな軌跡を描きます。"
+        "desc": "前半の /r/ でしっかり 1000Hz 破線を潜る谷を作った後、イギリス英語特有の曖昧母音 /ə/ を挟みながら、後半の /l/ に向かって滑らかに F3 が立ち上がります。"
     },
-{
+    {
         "label": "Very (US)",
         "file": "very_us.wav",
         "title": "Very /ˈveri/ (US)",
         "phonetics": "有声摩擦 /v/ の振動持続 ＋ r-colored母音のくびれ",
-        "desc": "語頭（0.25〜0.35s）は有声摩擦 /v/ の規則的な声帯振動が続き、破裂音（b）のような急峻なスパイクがありません。続く母音〜/r/（0.45〜0.55s）で F3 が F2 に引きずり下ろされ、Δ が 500Hz 未満の深い平底の谷を作ります。"
+        "desc": "語頭は有声摩擦 /v/ の規則的な声帯振動が続き、破裂音（b）のようなスパイクがありません。続く母音〜/r/ で F3 が引きずり下ろされ、Δ が 500Hz 未満の深い谷を作ります。"
     },
-{
+    {
         "label": "Very (UK)",
         "file": "very_uk.wav",
         "title": "Very /ˈveri/ (UK)",
         "phonetics": "/v/ から短母音を経て短く鋭い /r/ へ",
-        "desc": "前半の摩擦音から母音 /e/ を経て、0.50s 付近で F3 が鋭く落ち込みます。米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっているのがイギリス英語の音響的特徴です。"
+        "desc": "前半の摩擦音から母音 /e/ を経て、F3 が鋭く落ち込みます。米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっています。"
     }
 ]
 
@@ -148,6 +151,7 @@ for idx, col in enumerate(cols):
             with open(file_path, "rb") as f:
                 st.session_state.current_audio_bytes = f.read()
                 st.session_state.current_label = f"お手本: {p_info['label']}"
+                st.session_state.auto_play = True
             preset_clicked = True
             st.rerun()
         else:
@@ -161,6 +165,7 @@ if not preset_clicked and audio_input is not None:
         st.session_state.last_recorded_bytes = new_bytes
         st.session_state.current_audio_bytes = new_bytes
         st.session_state.current_label = "あなたの発音録音"
+        st.session_state.auto_play = False
 
 
 def decode_audio_bytes(audio_bytes: bytes):
@@ -193,7 +198,7 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
     valid_times = []
 
     max_int = np.max(intensity.values) if len(intensity.values) > 0 else 0
-    threshold_int = max(30.0, max_int - 28.0)
+    threshold_int = max(25.0, max_int - 35.0)
 
     for t in times:
         f0 = pitch.get_value_at_time(t)
@@ -211,10 +216,9 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
         else:
             f2_list.append(None); f3_list.append(None); delta_list.append(None)
 
-    # 修正後: 音声ファイルの本来の最後まで、あるいは十分なマージン（+0.25s以上）を持たせる
+    # 末尾の -ly 等が切れないよう、後の余白を十分に確保（+0.25s）
     if valid_times:
         x_min = max(0.0, float(min(valid_times)) - 0.08)
-        # 音声全体の終端（snd.duration）まで表示するか、マージンを広げて末尾の減衰を丸ごと入れる
         x_max = min(float(snd.duration), float(max(valid_times)) + 0.25)
     else:
         x_min, x_max = 0.0, float(snd.duration)
@@ -266,7 +270,9 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
     }
 
 
-def build_spike2_html(data: dict) -> str:
+def build_spike2_html(data: dict, auto_play: bool = False, export_name: str = "scope") -> str:
+    data["auto_play"] = auto_play
+    data["export_name"] = export_name
     data_json = json.dumps(data)
     return f"""
 <!DOCTYPE html>
@@ -281,14 +287,14 @@ def build_spike2_html(data: dict) -> str:
     overflow: hidden;
   }}
   .toolbar {{
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 16px; background: #0F172A;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: #0F172A;
     border: 1px solid #1E293B; border-radius: 8px 8px 0 0;
   }}
   button {{
     font-family: inherit;
-    font-size: 15px; font-weight: bold;
-    padding: 8px 16px; border-radius: 6px;
+    font-size: 14px; font-weight: bold;
+    padding: 8px 14px; border-radius: 6px;
     border: 1px solid #334155; cursor: pointer;
     background: #1E293B; color: #E2E8F0;
     transition: all 0.15s;
@@ -312,14 +318,14 @@ def build_spike2_html(data: dict) -> str:
 
   select {{
     font-family: inherit;
-    font-size: 15px; padding: 6px 10px;
+    font-size: 14px; padding: 6px 10px;
     border-radius: 6px; border: 1px solid #334155;
     background: #1E293B; color: #E2E8F0;
     font-weight: bold;
   }}
   .readout {{
     font-family: inherit;
-    font-size: 15px; font-weight: 500; margin-left: auto;
+    font-size: 14px; font-weight: 500; margin-left: auto;
     font-variant-numeric: tabular-nums; color: #E2E8F0;
     white-space: nowrap;
   }}
@@ -351,6 +357,8 @@ def build_spike2_html(data: dict) -> str:
       <option value="0.5">0.5x</option>
     </select>
   </label>
+  <button id="btn-dl-plot" title="プロット画像をPNGで保存">💾 Plot (.png)</button>
+  <button id="btn-dl-audio" title="音声ファイルをWAVで保存">🔊 Audio (.wav)</button>
   <div class="readout" id="time-readout">Cursor: 0.000 s</div>
 </div>
 
@@ -371,6 +379,8 @@ const ovCtx = ovCanvas.getContext('2d');
 const btnPlay = document.getElementById('btn-play');
 const btnReset = document.getElementById('btn-reset');
 const btnSpec = document.getElementById('btn-spec');
+const btnDlPlot = document.getElementById('btn-dl-plot');
+const btnDlAudio = document.getElementById('btn-dl-audio');
 const selRate = document.getElementById('sel-rate');
 const readout = document.getElementById('time-readout');
 
@@ -404,21 +414,23 @@ if (D.spec_w > 0 && D.spec_h > 0 && D.spec_b64) {{
   sCtx.putImageData(imgData, 0, 0);
 }}
 
-let audioCtx = null;
-let audioBuffer = null;
-let sourceNode = null;
+// --- ピッチ維持再生のための HTMLAudioElement 構築 ---
+let audioEl = new Audio();
+let audioBlobUrl = null;
 let isPlaying = false;
-let playStartWallTime = 0;
-let playStartOffset = 0;
-let playbackRate = 1.0;
 let animId = null;
 
-async function initAudio() {{
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function initAudio() {{
   const binary = atob(D.wav_b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+  const blob = new Blob([bytes], {{ type: "audio/wav" }});
+  audioBlobUrl = URL.createObjectURL(blob);
+  audioEl.src = audioBlobUrl;
+  // 音程（ピッチ）を変えずに再生速度だけを変える設定
+  audioEl.preservesPitch = true;
+  audioEl.mozPreservesPitch = true;
+  audioEl.webkitPreservesPitch = true;
 }}
 initAudio();
 
@@ -545,7 +557,7 @@ function drawBackground() {{
   bgCtx.stroke();
   bgCtx.restore();
 
-  // --- 第2段: F2 and F3 ---
+  // --- 第2段: F2 and F3 (500 ~ 4000Hz) ---
   const fMin = 500, fMax = 4000;
   [1000, 1500, 2000, 2500, 3000, 3500, 4000].forEach(hz => {{
     const y = valToY(hz, fMin, fMax, p2);
@@ -560,8 +572,8 @@ function drawBackground() {{
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
-  drawSeries(D.times, D.f3, fMin, fMax, p2, "#38BDF8", 3.0); // F3: スカイブルー
-  drawSeries(D.times, D.f2, fMin, fMax, p2, "#10B981", 3.0); // F2: グリーン復元
+  drawSeries(D.times, D.f3, fMin, fMax, p2, "#38BDF8", 3.0);
+  drawSeries(D.times, D.f2, fMin, fMax, p2, "#10B981", 3.0);
   bgCtx.restore();
 
   // 中段 凡例
@@ -590,13 +602,11 @@ function drawBackground() {{
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
     bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left - 5, y); bgCtx.lineTo(MARGIN.left, y); bgCtx.stroke();
-    // 下段の目盛り数値もすべて統一グレー
     bgCtx.fillStyle = "#94A3B8";
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
     bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
-  // R Target 破線 (1000Hz)
   const yTarget = valToY(1000, dMin, dMax, p3);
   bgCtx.save();
   bgCtx.strokeStyle = "#EF4444"; bgCtx.lineWidth = 1.5; bgCtx.setLineDash([6, 5]);
@@ -611,7 +621,7 @@ function drawBackground() {{
   drawSeries(D.times, D.delta, dMin, dMax, p3, "#F59E0B", 3.2);
   bgCtx.restore();
 
-  // 下段 凡例（新設）
+  // 下段 凡例
   const leg3X = W - MARGIN.right - 145;
   const leg3Y = p3.top + 18;
   bgCtx.fillStyle = "rgba(9, 13, 22, 0.85)";
@@ -633,7 +643,7 @@ function drawBackground() {{
     bgCtx.stroke();
   }});
 
-  // Y軸タイトル（すべて落ち着いたグレーに統一）
+  // Y軸タイトル
   bgCtx.font = "bold 15px " + APP_FONT;
   bgCtx.fillStyle = "#CBD5E1";
   drawRotatedLabel("Waveform", 28, (p1.top + p1.bottom) / 2);
@@ -727,46 +737,40 @@ btnSpec.addEventListener("click", () => {{
   drawBackground();
 }});
 
+// --- ピッチ維持対応の再生処理 ---
 function startPlayback() {{
-  if (!audioBuffer) return;
-  if (audioCtx.state === "suspended") audioCtx.resume();
+  if (!audioEl.src) return;
   stopPlayback();
 
-  playbackRate = parseFloat(selRate.value);
+  const rate = parseFloat(selRate.value);
+  audioEl.playbackRate = rate;
+  audioEl.preservesPitch = true;
+  audioEl.mozPreservesPitch = true;
+  audioEl.webkitPreservesPitch = true;
+
   const s = Math.min(selStart, selEnd);
   const e = Math.max(selStart, selEnd);
   const playFrom = (cursorT >= s && cursorT < e - 0.02) ? cursorT : s;
-  const playDuration = Math.max(0.01, e - playFrom);
 
-  sourceNode = audioCtx.createBufferSource();
-  sourceNode.buffer = audioBuffer;
-  sourceNode.playbackRate.value = playbackRate;
-  sourceNode.connect(audioCtx.destination);
-
-  playStartWallTime = audioCtx.currentTime;
-  playStartOffset = playFrom;
+  audioEl.currentTime = playFrom;
   isPlaying = true;
-
   btnPlay.textContent = "⏹ Stop (Space)";
   btnPlay.className = "btn-play-active";
 
-  sourceNode.start(0, playFrom, playDuration);
-  sourceNode.onended = () => {{
-    if (isPlaying) {{
+  audioEl.play().catch(err => {{
+    console.warn("Autoplay blocked or interrupted:", err);
+    stopPlayback();
+  }});
+
+  function tick() {{
+    if (!isPlaying) return;
+    cursorT = audioEl.currentTime;
+    if (cursorT >= e || audioEl.ended) {{
+      audioEl.pause();
       isPlaying = false;
       cursorT = e;
       btnPlay.textContent = "▶ Play (Space)";
       btnPlay.className = "btn-play-ready";
-      drawOverlay();
-    }}
-  }};
-
-  function tick() {{
-    if (!isPlaying) return;
-    const elapsed = (audioCtx.currentTime - playStartWallTime) * playbackRate;
-    cursorT = playStartOffset + elapsed;
-    if (cursorT >= e) {{
-      cursorT = e;
       drawOverlay();
       return;
     }}
@@ -777,15 +781,21 @@ function startPlayback() {{
 }}
 
 function stopPlayback() {{
-  if (sourceNode) {{
-    try {{ sourceNode.onended = null; sourceNode.stop(); }} catch (err) {{}}
-    sourceNode = null;
-  }}
+  audioEl.pause();
   if (animId) cancelAnimationFrame(animId);
   isPlaying = false;
   btnPlay.textContent = "▶ Play (Space)";
   btnPlay.className = "btn-play-ready";
 }}
+
+// 再生中に速度変更ドロップダウンを切り替えた場合も即座に反映
+selRate.addEventListener("change", () => {{
+  const rate = parseFloat(selRate.value);
+  audioEl.playbackRate = rate;
+  audioEl.preservesPitch = true;
+  audioEl.mozPreservesPitch = true;
+  audioEl.webkitPreservesPitch = true;
+}});
 
 btnPlay.addEventListener("click", () => {{
   if (isPlaying) stopPlayback();
@@ -798,6 +808,31 @@ btnReset.addEventListener("click", () => {{
   selEnd = xMax;
   cursorT = (xMin + xMax) / 2;
   drawOverlay();
+}});
+
+// --- プロット画像 (.png) のダウンロード ---
+btnDlPlot.addEventListener("click", () => {{
+  const expCanvas = document.createElement("canvas");
+  expCanvas.width = bgCanvas.width;
+  expCanvas.height = bgCanvas.height;
+  const eCtx = expCanvas.getContext("2d");
+
+  eCtx.drawImage(bgCanvas, 0, 0);
+  eCtx.drawImage(ovCanvas, 0, 0);
+
+  const link = document.createElement("a");
+  link.download = `NinjaPhonetics_${{D.export_name}}.png`;
+  link.href = expCanvas.toDataURL("image/png");
+  link.click();
+}});
+
+// --- 音声ファイル (.wav) のダウンロード ---
+btnDlAudio.addEventListener("click", () => {{
+  if (!audioBlobUrl) return;
+  const link = document.createElement("a");
+  link.download = `NinjaPhonetics_${{D.export_name}}.wav`;
+  link.href = audioBlobUrl;
+  link.click();
 }});
 
 window.addEventListener("keydown", (e) => {{
@@ -870,6 +905,14 @@ window.addEventListener("resize", () => {{
 
 drawBackground();
 drawOverlay();
+
+// お手本ボタン押下時: 1秒待ってから先頭から自動再生
+if (D.auto_play) {{
+  setTimeout(() => {{
+    cursorT = xMin;
+    startPlayback();
+  }}, 1000);
+}}
 </script>
 </body>
 </html>
@@ -878,18 +921,30 @@ drawOverlay();
 # スコープ描画と解説カード
 if st.session_state.current_audio_bytes is not None:
     if st.session_state.current_label:
-        # 絵文字を廃止し、標準的なトーンの表示に変更
+        # フォント約2倍・余白を大幅に拡大して視認性を強化
         st.markdown(
-            f"<div style='color: #94A3B8; font-size: 0.95rem; margin-bottom: 4px;'>"
-            f"● 表示中: <span style='color: #F8FAFC; font-weight: 600;'>{st.session_state.current_label}</span>"
+            f"<div style='color: #94A3B8; font-size: 1.85rem; font-weight: 700; margin-top: 18px; margin-bottom: 16px; line-height: 1.25;'>"
+            f"● 表示中: <span style='color: #F8FAFC;'>{st.session_state.current_label}</span>"
             f"</div>",
             unsafe_allow_html=True
         )
+    
+    # ダウンロードファイル名用のクリーンな文字列生成
+    clean_export_name = re.sub(r'[^a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', '_', st.session_state.current_label)
+    clean_export_name = re.sub(r'_+', '_', clean_export_name).strip('_')
+
     scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
-    html_code = build_spike2_html(scope_data)
+    html_code = build_spike2_html(
+        scope_data,
+        auto_play=st.session_state.auto_play,
+        export_name=clean_export_name or "sample"
+    )
+    # 一度自動再生トリガーを渡したらリセット
+    st.session_state.auto_play = False
+
     components.html(html_code, height=640, scrolling=False)
 
-    # 下部解説枠（選択中のプリセットに合わせて表示）
+    # 下部解説枠
     info = next((p for p in PRESETS if p["label"] in st.session_state.current_label), None)
     if info:
         st.markdown(f"""

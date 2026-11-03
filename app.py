@@ -6,42 +6,94 @@ import numpy as np
 import base64
 import json
 import io
+import os
 
 st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide")
 
-# モダンなデザインのまま、ボタンサイズを大幅拡大（約4倍のクリック面積）するカスタムCSS
 st.markdown("""
 <style>
-    .block-container { padding-top: 1.2rem; padding-bottom: 1rem; }
-    
-    /* Streamlit標準の音声録音ウィジェットを大型化 */
+    .block-container { padding-top: 1.0rem; padding-bottom: 0.5rem; }
     div[data-testid="stAudioInput"] {
         background: #F8FAFC;
         border: 2px solid #CBD5E1;
         border-radius: 12px;
-        padding: 12px 18px;
+        padding: 10px 16px;
     }
     div[data-testid="stAudioInput"] button {
-        transform: scale(1.3);
-        margin: 8px 16px;
+        transform: scale(1.2);
+        margin: 4px 12px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🥷 NinjaPhonetics: Biofeedback Scope")
 
-# 音声入力（ブラウザ標準のマイク機能：スマホ・PC対応）
-audio_input = st.audio_input("🎙️ 音声を録音してください（発音後、再度押すと停止して解析されます）")
+# セッション状態の初期化
+if "current_audio_bytes" not in st.session_state:
+    st.session_state.current_audio_bytes = None
+if "current_label" not in st.session_state:
+    st.session_state.current_label = ""
+if "last_recorded_bytes" not in st.session_state:
+    st.session_state.last_recorded_bytes = None
+
+# --- お手本音声プリセット設定（6種） ---
+PRESET_DIR = "presets"
+PRESETS = [
+    {"label": "🇺🇸 Right (US)", "file": "right_us.wav"},
+    {"label": "🇬🇧 Right (UK)", "file": "right_uk.wav"},
+    {"label": "🇬🇧 Light (UK)", "file": "light_uk.wav"},
+    {"label": "⚪ White (UK)", "file": "white_uk.wav"},
+    {"label": "🇯🇵 ライト (JP)", "file": "raito_jp.wav"},
+]
+
+st.markdown("##### 🎯 お手本プリセット（クリックして波形をロード）")
+cols = st.columns(len(PRESETS))
+preset_clicked = False
+
+for idx, col in enumerate(cols):
+    p_info = PRESETS[idx]
+    if col.button(p_info["label"], use_container_width=True):
+        file_path = os.path.join(PRESET_DIR, p_info["file"])
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                st.session_state.current_audio_bytes = f.read()
+                st.session_state.current_label = f"お手本: {p_info['label']}"
+            preset_clicked = True
+            st.rerun()
+        else:
+            st.warning(f"`{file_path}` が見つかりません。")
+
+# 自前のマイク入力
+audio_input = st.audio_input("🎙️ または自分の声を録音して比較する")
+if audio_input is not None:
+    st.session_state.current_audio_bytes = audio_input.read()
+    st.session_state.current_label = "あなたの発音録音"
+
+
+def decode_audio_bytes(audio_bytes: bytes):
+    """バイト列からサンプリング周波数とモノラルNumPy配列を取り出す (WAV / M4A 対応)"""
+    try:
+        # まず通常の soundfile (WAV / FLAC 等) で試行
+        data, sr = sf.read(io.BytesIO(audio_bytes))
+    except Exception:
+        # m4a / AAC の場合は pydub を利用して安全に展開
+        from pydub import AudioSegment
+        seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
+        sr = seg.frame_rate
+        raw = seg.get_array_of_samples()
+        data = np.array(raw).astype(np.float32) / (1 << (seg.sample_width * 8 - 1))
+        if seg.channels > 1:
+            data = data.reshape((-1, seg.channels))
+
+    if data.ndim > 1:
+        data = np.mean(data, axis=1)
+    return data, sr
 
 
 def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 5000.0):
-    audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes))
-
-    if audio_data.ndim > 1:
-        audio_data = np.mean(audio_data, axis=1)
+    audio_data, sample_rate = decode_audio_bytes(audio_bytes)
 
     snd = parselmouth.Sound(audio_data.astype(np.float64), sampling_frequency=float(sample_rate))
-
     pitch = snd.to_pitch()
     formant = snd.to_formant_burg(time_step=0.005, max_number_of_formants=5.0, maximum_formant=max_formant_hz)
     intensity = snd.to_intensity()
@@ -81,7 +133,10 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
     wave_t = np.round(raw_times[::step], 4).tolist()
     wave_y = np.round(raw_samples[::step], 4).tolist()
 
-    wav_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+    # Web Audio API 互換のため、常に clean な WAV バイトを生成して Base64 化
+    wav_io = io.BytesIO()
+    sf.write(wav_io, audio_data, sample_rate, format='WAV')
+    wav_b64 = base64.b64encode(wav_io.getvalue()).decode("utf-8")
 
     return {
         "duration": float(snd.duration),
@@ -112,31 +167,31 @@ def build_spike2_html(data: dict) -> str:
   }}
   .toolbar {{
     display: flex; align-items: center; gap: 16px;
-    padding: 14px 20px; background: #F8FAFC;
+    padding: 12px 18px; background: #F8FAFC;
     border: 2px solid #CBD5E1; border-radius: 8px 8px 0 0;
   }}
-  
-  /* ボタン大型化（フォント22px、パディング拡大で押しやすくモダンに） */
   button {{
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 22px; font-weight: bold;
-    padding: 12px 26px; border-radius: 8px;
+    font-size: 20px; font-weight: bold;
+    padding: 10px 22px; border-radius: 8px;
     border: 2px solid #334155; cursor: pointer;
     background: #FFFFFF; color: #0F172A;
     transition: all 0.15s;
+    white-space: nowrap;
   }}
   button.primary {{ background: #2563EB; color: white; border-color: #1D4ED8; }}
   button.primary:hover {{ background: #1D4ED8; }}
   button:hover {{ background: #E2E8F0; }}
   
   select {{
-    font-size: 20px; padding: 10px 14px;
+    font-size: 18px; padding: 8px 12px;
     border-radius: 8px; border: 2px solid #334155;
     font-family: Arial, Helvetica, sans-serif; font-weight: bold;
   }}
   .readout {{
-    font-size: 20px; font-weight: bold; margin-left: auto;
+    font-size: 19px; font-weight: bold; margin-left: auto;
     font-variant-numeric: tabular-nums; color: #1E293B;
+    white-space: nowrap;
   }}
   #scope-wrapper {{
     position: relative; width: 100%; height: 780px;
@@ -147,7 +202,6 @@ def build_spike2_html(data: dict) -> str:
     position: absolute; left: 0; top: 0;
     width: 100%; height: 100%;
   }}
-  /* 最前面の選択ハイライトを背面のプロット線と乗算合成し、線を一切隠さないようにする */
   #overlay-canvas {{
     mix-blend-mode: multiply;
   }}
@@ -158,7 +212,7 @@ def build_spike2_html(data: dict) -> str:
 <div class="toolbar">
   <button id="btn-play" class="primary">▶ Play (Space)</button>
   <button id="btn-reset">⏮ 全体選択に戻す</button>
-  <label style="font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+  <label style="font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
     Speed:
     <select id="sel-rate">
       <option value="1.0">1.0x (標準)</option>
@@ -267,12 +321,10 @@ function drawBackground() {{
   const stepT = durationSpan <= 0.6 ? 0.05 : (durationSpan <= 1.5 ? 0.1 : 0.2);
   const firstTick = Math.ceil(xMin / stepT) * stepT;
 
-  // 1段目・2段目・3段目のすべてに目盛り（外向き）とグリッドを描画
   panels.forEach((p) => {{
     for (let t = firstTick; t <= xMax + 1e-6; t += stepT) {{
       const x = tToX(t);
 
-      // グリッド線
       bgCtx.strokeStyle = "#E2E8F0";
       bgCtx.lineWidth = 1.5;
       bgCtx.beginPath();
@@ -280,7 +332,6 @@ function drawBackground() {{
       bgCtx.lineTo(x, p.bottom);
       bgCtx.stroke();
 
-      // 目盛り線（外向きに6px）
       bgCtx.strokeStyle = "#334155";
       bgCtx.lineWidth = 2;
       bgCtx.beginPath();
@@ -288,7 +339,6 @@ function drawBackground() {{
       bgCtx.lineTo(x, p.bottom + 6);
       bgCtx.stroke();
 
-      // 目盛り数値
       bgCtx.fillStyle = "#0F172A";
       bgCtx.textAlign = "center";
       bgCtx.textBaseline = "top";
@@ -296,7 +346,7 @@ function drawBackground() {{
     }}
   }});
 
-  // --- 第1段: 生波形 ---
+  // 1段目: 生波形
   const p1 = panels[0];
   const waveMid = (p1.top + p1.bottom) / 2;
   bgCtx.strokeStyle = "#CBD5E1";
@@ -325,7 +375,7 @@ function drawBackground() {{
   bgCtx.stroke();
   bgCtx.restore();
 
-  // --- 第2段: F3 / F2 ---
+  // 2段目: F3 / F2
   const p2 = panels[1];
   const fMin = 500, fMax = 3200;
   [1000, 1500, 2000, 2500, 3000].forEach(hz => {{
@@ -337,35 +387,6 @@ function drawBackground() {{
     bgCtx.textAlign = "right"; bgCtx.textBaseline = "middle";
     bgCtx.fillText(hz.toString(), MARGIN.left - 10, y);
   }});
-  
-  // --- F3 / F2 凡例（縦並び・右上） ---
-  const legendX = W - MARGIN.right - 95;
-  const legendY1 = p2.top + 22; // 1行目: F3
-  const legendY2 = p2.top + 48; // 2行目: F2
-  
-  bgCtx.font = "bold 18px Arial, Helvetica, sans-serif";
-
-  // 1行目: F3 (青)
-  bgCtx.strokeStyle = "#2563EB";
-  bgCtx.lineWidth = 3.5;
-  bgCtx.beginPath();
-  bgCtx.moveTo(legendX, legendY1);
-  bgCtx.lineTo(legendX + 22, legendY1);
-  bgCtx.stroke();
-  bgCtx.fillStyle = "#2563EB";
-  bgCtx.textAlign = "left";
-  bgCtx.textBaseline = "middle";
-  bgCtx.fillText("F3", legendX + 28, legendY1);
-
-  // 2行目: F2 (緑)
-  bgCtx.strokeStyle = "#059669";
-  bgCtx.lineWidth = 3.5;
-  bgCtx.beginPath();
-  bgCtx.moveTo(legendX, legendY2);
-  bgCtx.lineTo(legendX + 22, legendY2);
-  bgCtx.stroke();
-  bgCtx.fillStyle = "#059669";
-  bgCtx.fillText("F2", legendX + 28, legendY2);
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
@@ -373,7 +394,28 @@ function drawBackground() {{
   drawSeries(D.times, D.f2, fMin, fMax, p2, "#059669", 3.5);
   bgCtx.restore();
 
-  // --- 第3段: Δ(F3 - F2) [0, 2500] ---
+  // F3 / F2 縦並び凡例（2行）
+  const legendX = W - MARGIN.right - 95;
+  const legendY1 = p2.top + 22;
+  const legendY2 = p2.top + 48;
+  bgCtx.font = "bold 18px Arial, Helvetica, sans-serif";
+
+  bgCtx.strokeStyle = "#2563EB";
+  bgCtx.lineWidth = 3.5;
+  bgCtx.beginPath();
+  bgCtx.moveTo(legendX, legendY1); bgCtx.lineTo(legendX + 22, legendY1); bgCtx.stroke();
+  bgCtx.fillStyle = "#2563EB";
+  bgCtx.textAlign = "left"; bgCtx.textBaseline = "middle";
+  bgCtx.fillText("F3", legendX + 28, legendY1);
+
+  bgCtx.strokeStyle = "#059669";
+  bgCtx.lineWidth = 3.5;
+  bgCtx.beginPath();
+  bgCtx.moveTo(legendX, legendY2); bgCtx.lineTo(legendX + 22, legendY2); bgCtx.stroke();
+  bgCtx.fillStyle = "#059669";
+  bgCtx.fillText("F2", legendX + 28, legendY2);
+
+  // 3段目: Δ(F3 - F2)
   const p3 = panels[2];
   const dMin = 0, dMax = 2500;
   [0, 500, 1000, 1500, 2000, 2500].forEach(hz => {{
@@ -452,19 +494,15 @@ function drawOverlay() {{
   const topY = panels[0].top;
   const botY = panels[2].bottom;
 
-  // 範囲選択ハイライト（薄い水色）
-  // 範囲選択ハイライト（極淡いアイスブルー #EFFAFF）
-  // 範囲選択ハイライト（#EFFAFF をプロット線の下に敷く上品なブレンド）
+  // 範囲選択ハイライト
   if (Math.abs(selEnd - selStart) > 0.005) {{
     const sx = tToX(Math.min(selStart, selEnd));
     const ex = tToX(Math.max(selStart, selEnd));
 
-    // 線をくっきり見せる淡いスカイブルー（乗算ブレンドで線が100%透過）
-    ovCtx.fillStyle = "rgba(224, 242, 254, 0.55)"; 
+    ovCtx.fillStyle = "rgba(224, 242, 254, 0.60)";
     ovCtx.fillRect(sx, topY, ex - sx, botY - topY);
 
-    // 境界線
-    ovCtx.strokeStyle = "#7DD3FC";
+    ovCtx.strokeStyle = "#38BDF8";
     ovCtx.lineWidth = 1.5;
     ovCtx.beginPath();
     ovCtx.moveTo(sx, topY); ovCtx.lineTo(sx, botY);
@@ -472,6 +510,7 @@ function drawOverlay() {{
     ovCtx.stroke();
   }}
 
+  // 赤色縦カーソル
   const cx = tToX(cursorT);
   ovCtx.strokeStyle = "#EF4444";
   ovCtx.lineWidth = 2.5;
@@ -640,8 +679,10 @@ drawOverlay();
 </html>
 """
 
-if audio_input is not None:
-    audio_bytes = audio_input.read()
-    scope_data = extract_scope_data_from_bytes(audio_bytes)
+# 表示対象の音声データがあれば解析・描画
+if st.session_state.current_audio_bytes is not None:
+    if st.session_state.current_label:
+        st.caption(f"📊 表示中: **{st.session_state.current_label}**")
+    scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
     html_code = build_spike2_html(scope_data)
-    components.html(html_code, height=880, scrolling=False)
+    components.html(html_code, height=860, scrolling=False)

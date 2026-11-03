@@ -43,6 +43,11 @@ temp_test.wav
 temp/
 recordings/
 
+# presets ディレクトリ配下の音声ファイルはトラッキング対象にする
+!presets/*.wav
+!presets/*.mp3
+!presets/*.m4a
+
 # PlotlyのHTML出力・エクスポート画像
 *.html
 !templates/*.html

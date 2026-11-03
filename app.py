@@ -607,14 +607,31 @@ function drawBackground() {{
     bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
+ // --- R Strike Zone (<1000Hz シェードパッチ) ---
   const yTarget = valToY(1000, dMin, dMax, p3);
+  const yZero = valToY(0, dMin, dMax, p3);
+
   bgCtx.save();
-  bgCtx.strokeStyle = "#EF4444"; bgCtx.lineWidth = 1.5; bgCtx.setLineDash([6, 5]);
-  bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, yTarget); bgCtx.lineTo(W - MARGIN.right, yTarget); bgCtx.stroke();
+  // 1. ストライクゾーンの半透明シェード (0 ~ 1000Hz の帯域全体)
+  bgCtx.fillStyle = "rgba(239, 68, 68, 0.08)";
+  bgCtx.fillRect(MARGIN.left, yTarget, plotW, yZero - yTarget);
+
+  // 2. 上限境界線 (赤色破線)
+  bgCtx.strokeStyle = "rgba(239, 68, 68, 0.65)";
+  bgCtx.lineWidth = 1.5;
+  bgCtx.setLineDash([6, 5]);
+  bgCtx.beginPath();
+  bgCtx.moveTo(MARGIN.left, yTarget);
+  bgCtx.lineTo(W - MARGIN.right, yTarget);
+  bgCtx.stroke();
   bgCtx.restore();
-  bgCtx.font = "13px " + APP_FONT;
-  bgCtx.fillStyle = "#EF4444"; bgCtx.textAlign = "right"; bgCtx.textBaseline = "bottom";
-  bgCtx.fillText("R Target (<1000Hz)", W - MARGIN.right - 6, yTarget - 3);
+
+  // 3. ゾーンラベル
+  bgCtx.font = "bold 12px " + APP_FONT;
+  bgCtx.fillStyle = "rgba(239, 68, 68, 0.85)";
+  bgCtx.textAlign = "right";
+  bgCtx.textBaseline = "bottom";
+  bgCtx.fillText("R STRIKE ZONE (<1000Hz)", W - MARGIN.right - 8, yTarget - 4);
 
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p3.top, plotW, p3.height); bgCtx.clip();

@@ -79,6 +79,13 @@ PRESETS = [
         "phonetics": "/r/ の狭窄",
         "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。その後の二重母音への移行部でF2が上昇します。"
     },
+{
+        "label": "Light (US)",
+        "file": "light_us.wav",
+        "title": "Light /laɪt/ (US)",
+        "phonetics": "Dark L（軟口蓋化）による低F2・高Δ",
+        "desc": "米語の語頭 /l/ は奥舌が引かれるため（Dark L傾向）、開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に大きく開くのが特徴です。後半の母音 /aɪ/ で舌が前上に移動するにつれて F2 が急上昇していきます。"
+    },
     {
         "label": "Light (UK)",
         "file": "light_uk.wav",
@@ -100,19 +107,33 @@ PRESETS = [
         "phonetics": "タップ破裂と語尾母音付加",
         "desc": "「ラ」で瞬間的な破裂が起き、語尾には英語の/t/にはない母音「オ」のホルマントが明瞭に残ります。"
     },
-    {
-        "label": "Really",
-        "file": "really.wav",
-        "title": "Really /ˈrɪəli/",
-        "phonetics": "/r/ の谷から /l/ の山へ",
-        "desc": "前半の/r/で差分が1000Hz未満へ急降下した後、語中の/l/に向かってF3が2600Hz以上へ一気に上昇します。"
+{
+        "label": "Really (US)",
+        "file": "really_us.wav",
+        "title": "Really /ˈrɪli/ ~ /ˈriːli/ (US)",
+        "phonetics": "/r/ の深谷から /l/ の天井へのダイナミックジャンプ",
+        "desc": "語頭の /r/（0.35s付近）で青（F3）が緑（F2）へ沈み込み、黄色（Δ）が 500Hz 前後まで深く潜ります。そこから後半の /l/（0.50s以降）に向かって F3 が 3000Hz 超へ垂直に跳ね上がる『谷から山へ』のコントラストが米語の決定的な特徴です。"
     },
-    {
-        "label": "Very",
-        "file": "very.wav",
-        "title": "Very /ˈveri/",
-        "phonetics": "有声摩擦 /v/ から /r/ のくびれへ",
-        "desc": "語頭の/v/の周期的な振動を持続させたまま、後続の/r/でF3が急激に引きずり下ろされます。"
+{
+        "label": "Really (UK)",
+        "file": "really_uk.wav",
+        "title": "Really /ˈrɪəli/ (UK)",
+        "phonetics": "センタリング二重母音を経由する滑らかな渡り",
+        "desc": "前半の /r/（0.45〜0.50s）でしっかり 1000Hz 破線を潜る谷を作ります。米語のように急激に跳ね上がるのではなく、イギリス英語特有の曖昧母音 /ə/ を挟みながら、後半の /l/ に向かって緩やかに F3 が立ち上がっていく滑らかな軌跡を描きます。"
+    },
+{
+        "label": "Very (US)",
+        "file": "very_us.wav",
+        "title": "Very /ˈveri/ (US)",
+        "phonetics": "有声摩擦 /v/ の振動持続 ＋ r-colored母音のくびれ",
+        "desc": "語頭（0.25〜0.35s）は有声摩擦 /v/ の規則的な声帯振動が続き、破裂音（b）のような急峻なスパイクがありません。続く母音〜/r/（0.45〜0.55s）で F3 が F2 に引きずり下ろされ、Δ が 500Hz 未満の深い平底の谷を作ります。"
+    },
+{
+        "label": "Very (UK)",
+        "file": "very_uk.wav",
+        "title": "Very /ˈveri/ (UK)",
+        "phonetics": "/v/ から短母音を経て短く鋭い /r/ へ",
+        "desc": "前半の摩擦音から母音 /e/ を経て、0.50s 付近で F3 が鋭く落ち込みます。米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっているのがイギリス英語の音響的特徴です。"
     }
 ]
 
@@ -190,19 +211,21 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
         else:
             f2_list.append(None); f3_list.append(None); delta_list.append(None)
 
+    # 修正後: 音声ファイルの本来の最後まで、あるいは十分なマージン（+0.25s以上）を持たせる
     if valid_times:
         x_min = max(0.0, float(min(valid_times)) - 0.08)
-        x_max = min(float(snd.duration), float(max(valid_times)) + 0.08)
+        # 音声全体の終端（snd.duration）まで表示するか、マージンを広げて末尾の減衰を丸ごと入れる
+        x_max = min(float(snd.duration), float(max(valid_times)) + 0.25)
     else:
         x_min, x_max = 0.0, float(snd.duration)
 
-    spec = snd.to_spectrogram(window_length=0.005, maximum_frequency=3500.0, time_step=0.003, frequency_step=25.0)
+    spec = snd.to_spectrogram(window_length=0.005, maximum_frequency=4200.0, time_step=0.003, frequency_step=25.0)
     spec_vals = 10.0 * np.log10(np.maximum(spec.values, 1e-12))
     spec_t = spec.xs()
     spec_f = spec.ys()
 
     t_mask = (spec_t >= x_min) & (spec_t <= x_max)
-    f_mask = (spec_f >= 500.0) & (spec_f <= 3200.0)
+    f_mask = (spec_f >= 500.0) & (spec_f <= 4000.0)
 
     if np.any(t_mask) and np.any(f_mask):
         sub_spec = spec_vals[np.ix_(f_mask, t_mask)]
@@ -523,8 +546,8 @@ function drawBackground() {{
   bgCtx.restore();
 
   // --- 第2段: F2 and F3 ---
-  const fMin = 500, fMax = 3200;
-  [1000, 1500, 2000, 2500, 3000].forEach(hz => {{
+  const fMin = 500, fMax = 4000;
+  [1000, 1500, 2000, 2500, 3000, 3500, 4000].forEach(hz => {{
     const y = valToY(hz, fMin, fMax, p2);
     bgCtx.strokeStyle = "rgba(148, 163, 184, 0.14)"; bgCtx.lineWidth = 1.0;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();

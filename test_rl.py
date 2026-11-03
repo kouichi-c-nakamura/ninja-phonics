@@ -4,24 +4,26 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 def classify_right_light_raito(wav_path: str, max_formant_hz: float = 5000.0):
-    """
-    right (/r/), light (/l/), 日本語「ライト」([ɾ]) を判別し、
-    診断結果とPlotly図を返す。
-    """
     snd = parselmouth.Sound(wav_path)
     
-    # ピッチ、ホルマント、インテンシティ（音圧）を抽出
     pitch = snd.to_pitch()
     formant = snd.to_formant_burg(time_step=0.01, max_number_of_formants=5.0, maximum_formant=max_formant_hz)
     intensity = snd.to_intensity()
 
     times = formant.xs()
     f1_list, f2_list, f3_list, delta_list = [], [], [], []
-    voiced_times = []
+    valid_times = []
+
+    # 最大音圧の取得（ノイズと真の発声開始を切り分けるため）
+    max_intensity = np.max(intensity.values) if len(intensity.values) > 0 else 0
+    intensity_threshold = max(35.0, max_intensity - 25.0)  # ピークから25dB下または35dB以上
 
     for t in times:
         f0 = pitch.get_value_at_time(t)
-        if not np.isnan(f0) and f0 > 0:
+        inte = intensity.get_value(t)
+        
+        # 音圧が十分かつピッチが存在する区間を有声区間とする
+        if not np.isnan(f0) and f0 > 0 and inte >= intensity_threshold:
             f1 = formant.get_value_at_time(1, t)
             f2 = formant.get_value_at_time(2, t)
             f3 = formant.get_value_at_time(3, t)
@@ -30,19 +32,18 @@ def classify_right_light_raito(wav_path: str, max_formant_hz: float = 5000.0):
                 f2_list.append(f2)
                 f3_list.append(f3)
                 delta_list.append(f3 - f2)
-                voiced_times.append(t)
+                valid_times.append(t)
             else:
                 f1_list.append(None); f2_list.append(None); f3_list.append(None); delta_list.append(None)
         else:
             f1_list.append(None); f2_list.append(None); f3_list.append(None); delta_list.append(None)
 
-    if not voiced_times:
-        return {"error": "有声音が検出されませんでした。マイク音量を確認してください。"}, None
+    if not valid_times:
+        return {"error": "有効な発声が検出されませんでした。マイク音量を確認してください。"}, None
 
-    # --- 語頭子音（Onset）区間の特定 ---
-    # 発声開始（有声化）から最初の120ms以内を「語頭子音〜渡り」として解析対象にする
-    t_start_voice = voiced_times[0]
-    t_consonant_window = t_start_voice + 0.12  # 語頭120msにフォーカス
+    # 発声開始から120msを子音解析ウィンドウとする
+    t_start_voice = valid_times[0]
+    t_consonant_window = t_start_voice + 0.12
 
     onset_deltas = []
     onset_f3s = []
@@ -54,38 +55,29 @@ def classify_right_light_raito(wav_path: str, max_formant_hz: float = 5000.0):
     min_onset_delta = float(np.min(onset_deltas)) if onset_deltas else 9999.0
     min_onset_f3 = float(np.min(onset_f3s)) if onset_f3s else 9999.0
 
-    # 語頭における音圧立ち上がり（ステップ性の有無）
-    int_start = intensity.get_value(t_start_voice)
-    int_dip = intensity.get_value(t_start_voice + 0.03)
-
-    # --- 3者判別ロジック ---
-    # 1. 英語 R: F3-F2の急激な狭小化 (< 650Hz) かつ F3の著しい低下
-    if min_onset_delta <= 650 and min_onset_f3 <= 2100:
+    # --- 調整後の3者判別ロジック ---
+    # 1. 英語 R: F3-F2の急激な狭小化 (<= 650Hz) が最優先指標
+    if min_onset_delta <= 650 and min_onset_f3 <= 2300:
         detected_category = "English /r/ (right)"
         verdict = "R_SOUND"
-        confidence = "HIGH"
-        advice = "合格です。舌の後ろ側面が上顎奥歯にしっかり吸着（アンカー）し、F3がF2に綺麗に引き寄せられています。"
+        advice = "合格です！舌の両側面が上顎奥歯に吸着（アンカー）し、F3がF2に綺麗に引き寄せられています。"
 
-    # 2. 日本語の「ライト」([ɾ] 弾き音): 
-    # F3は下がらず高く維持(>2000Hz)、かつF3-F2が中途半端(700-1100Hz)、持続時間が極めて短い
-    elif min_onset_f3 > 1950 and (650 < min_onset_delta < 1100):
-        detected_category = "Japanese Flap [ɾ] (日本語のライト)"
-        verdict = "JAPANESE_FLAP"
-        confidence = "HIGH"
-        advice = "日本語のラ行（舌先で歯茎を弾く音）になっています。舌先をどこにも当てず、舌の両側面を上の奥歯に押し当ててF3を落としてください。"
-
-    # 3. 英語 L: F3が高く維持され (>2200Hz)、F3-F2の分離が大きい (>1100Hz)
-    elif min_onset_f3 >= 2100 and min_onset_delta >= 1100:
+    # 2. 英語 L: F3が高く維持され (>2100Hz)、かつF3-F2が大きく分離 (>1100Hz)
+    elif min_onset_delta >= 1100 and min_onset_f3 >= 2100:
         detected_category = "English /l/ (light)"
         verdict = "L_SOUND"
-        confidence = "HIGH"
-        advice = "クリアな /l/ の音です。舌先が上前歯の付け根に密着し、F3が高く保たれて側音化しています。"
+        advice = "クリアな /l/ です。舌先が歯茎に密着し、F3が高く保たれて側音化しています。"
+
+    # 3. 日本語の「ライト」([ɾ] 弾き音): 中間の危険ゾーン (650Hz < diff < 1100Hz) に滞在
+    elif 650 < min_onset_delta < 1100:
+        detected_category = "Japanese Flap [ɾ] (日本語のライト)"
+        verdict = "JAPANESE_FLAP"
+        advice = "日本語のラ行（舌先で歯茎を弾く音）になっています。舌先をどこにも当てず、舌の両側面を上の奥歯に押し当ててF3-F2差分を緑ゾーン（<650Hz）に落としてください。"
 
     else:
         detected_category = "Ambiguous / In-between"
         verdict = "UNCERTAIN"
-        confidence = "MEDIUM"
-        advice = "RともLとも判別しづらい中間の音です。Rを狙うなら奥歯のアンカーを強め、Lを狙うなら舌先を歯茎にしっかり当ててください。"
+        advice = "境界線上の音です。Rを狙うなら奥歯のアンカーを意識し、Lを狙うなら舌先を上前歯の裏に当ててください。"
 
     diagnosis_json = {
         "detected_class": detected_category,
@@ -98,7 +90,7 @@ def classify_right_light_raito(wav_path: str, max_formant_hz: float = 5000.0):
         "feedback": advice
     }
 
-    # --- Plotly 可視化 ---
+    # Plotly描画部分はそのまま流用
     fig = make_subplots(
         rows=2, cols=1,
         shared_xaxes=True,
@@ -109,17 +101,13 @@ def classify_right_light_raito(wav_path: str, max_formant_hz: float = 5000.0):
         )
     )
 
-    # 上段: F2とF3の軌跡
     fig.add_trace(go.Scatter(x=times, y=f3_list, mode="lines+markers", name="F3", line=dict(color="#2563EB", width=2.5)), row=1, col=1)
     fig.add_trace(go.Scatter(x=times, y=f2_list, mode="lines+markers", name="F2", line=dict(color="#10B981", width=2.5)), row=1, col=1)
-    # 判定対象区間（語頭120ms）を縦帯で可視化
     fig.add_vrect(x0=t_start_voice, x1=t_consonant_window, fillcolor="rgba(100, 116, 139, 0.15)", line_width=1, line_dash="dash", annotation_text="語頭解析ウィンドウ", row=1, col=1)
 
-    # 下段: 差分レーダー
     fig.add_trace(go.Scatter(x=times, y=delta_list, mode="lines+markers", name="F3 - F2", line=dict(color="#111827", width=3)), row=2, col=1)
     fig.add_vrect(x0=t_start_voice, x1=t_consonant_window, fillcolor="rgba(100, 116, 139, 0.15)", line_width=1, line_dash="dash", row=2, col=1)
 
-    # 判定ゾーン背景
     fig.add_hrect(y0=0, y1=650, fillcolor="rgba(16, 185, 129, 0.2)", line_width=0, annotation_text="English R ゾーン (<650Hz)", row=2, col=1)
     fig.add_hrect(y0=650, y1=1100, fillcolor="rgba(239, 68, 68, 0.18)", line_width=0, annotation_text="日本語ラ行 / エラー (650-1100Hz)", row=2, col=1)
     fig.add_hrect(y0=1100, y1=2200, fillcolor="rgba(59, 130, 246, 0.2)", line_width=0, annotation_text="English L ゾーン (>1100Hz)", row=2, col=1)

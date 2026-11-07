@@ -2,20 +2,17 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 import os
-import glob
+import json
 import numpy as np
 import pandas as pd
 
-# 既存の test_rhythm_align.py から関数をインポート
-from test_rhythm_align import (
-    DEFAULT_SCRIPT,
-    align_word_characters,
-    map_words_to_phonemes
-)
+from test_rhythm_align import align_word_characters, map_words_to_phonemes
+
+MANIFEST_PATH = "benchmarks/manifest.json"
 
 
 def compute_robust_metrics(phoneme_events: list):
-    """ベンチマーク統計用にロバスト化したリズム・C/V指標を算出"""
+    """Calculates robust rhythm and C/V metrics for benchmark aggregation."""
     vowels = [e for e in phoneme_events if e["is_vowel"]]
     consonants = [e for e in phoneme_events if not e["is_vowel"]]
 
@@ -26,7 +23,7 @@ def compute_robust_metrics(phoneme_events: list):
     pct_v = (sum_v / total_ms * 100.0) if total_ms > 0 else 0.0
     pct_c = 100.0 - pct_v
 
-    # 1. 最小フレーム(20.1ms)による分母歪みを抑えるため 30ms で下限クリップした nPVI-V
+    # 30ms floor clipped nPVI-V
     raw_durs = [e["dur_ms"] for e in vowels if e["dur_ms"] > 5.0]
     clipped_durs = [max(30.0, d) for d in raw_durs]
     m = len(clipped_durs)
@@ -35,15 +32,14 @@ def compute_robust_metrics(phoneme_events: list):
     npvi_clipped = 0.0
     if m > 1:
         npvi_raw = (100.0 / (m - 1)) * sum(
-            abs(raw_durs[k] - raw_durs[k+1]) / ((raw_durs[k] + raw_durs[k+1]) / 2.0)
+            abs(raw_durs[k] - raw_durs[k + 1]) / ((raw_durs[k] + raw_durs[k + 1]) / 2.0)
             for k in range(m - 1)
         )
         npvi_clipped = (100.0 / (m - 1)) * sum(
-            abs(clipped_durs[k] - clipped_durs[k+1]) / ((clipped_durs[k] + clipped_durs[k+1]) / 2.0)
+            abs(clipped_durs[k] - clipped_durs[k + 1]) / ((clipped_durs[k] + clipped_durs[k + 1]) / 2.0)
             for k in range(m - 1)
         )
 
-    # 2. 強勢母音 (Stress 1,2) vs 弱勢母音 (Stress 0) のパーセンタイル分布
     s_durs = [e["dur_ms"] for e in vowels if e["stress"] in (1, 2)]
     u_durs = [e["dur_ms"] for e in vowels if e["stress"] == 0]
 
@@ -68,41 +64,40 @@ def compute_robust_metrics(phoneme_events: list):
 
 
 def main():
-    wav_files = sorted(glob.glob("benchmarks/*/*.wav"))
-    if not wav_files:
-        print("benchmarks/ 内にWAVファイルが見つかりません。先に generate_benchmarks.py を実行してください。")
+    if not os.path.exists(MANIFEST_PATH):
+        print("Manifest file not found. Run generate_benchmarks.py first.")
         return
 
-    records = []
-    print(f"📊 全 {len(wav_files)} ファイルのアライメントと音響計測を開始します...")
+    with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
 
-    for wav_path in wav_files:
-        cohort = os.path.basename(os.path.dirname(wav_path))
+    records = []
+    print(f"Processing alignment for {len(manifest)} items...")
+
+    for item in manifest:
+        wav_path = item["wav_path"]
+        ref_text = item["reference_en"]
         fname = os.path.basename(wav_path)
+
         try:
-            # 強制カタカナ音声であっても、英語のお題スクリプト(DEFAULT_SCRIPT)に対してアライメントを取る
-            w_aligns = align_word_characters(wav_path, DEFAULT_SCRIPT)
+            w_aligns = align_word_characters(wav_path, ref_text)
             phones = map_words_to_phonemes(w_aligns)
             m = compute_robust_metrics(phones)
-            m["cohort"] = cohort
+            m["sentence_key"] = item["sentence_key"]
+            m["cohort"] = item["cohort"]
             m["file"] = fname
             records.append(m)
-            print(f"  [OK] {fname:<38} | %V: {m['pct_v']:>5.1f}% | nPVI(clip): {m['npvi_clipped']:>5.1f} | Schwa P75: {m['schwa_p75_ms']:>5.1f}ms")
+            print(f"  [OK] [{item['sentence_key']}] {fname:<32} | %V: {m['pct_v']:>5.1f}% | P75: {m['schwa_p75_ms']:>5.1f}ms")
         except Exception as e:
             print(f"  [ERR] {fname}: {e}")
 
     df = pd.DataFrame(records)
-    csv_path = "benchmarks/benchmark_results.csv"
+    csv_path = "benchmarks/benchmark_results_all.csv"
     df.to_csv(csv_path, index=False)
 
-    print("\n" + "=" * 85)
-    print("📈 コホート別 統計サマリー (Mean ± SD)")
-    print("=" * 85)
-    target_cols = ["pct_v", "pct_c", "npvi_raw", "npvi_clipped", "s_u_ratio_mean", "schwa_median_ms", "schwa_p75_ms", "schwa_p90_ms"]
-    summary = df.groupby("cohort")[target_cols].agg(["mean", "std"]).round(2)
+    print("\n--- Summary per Sentence & Cohort ---")
+    summary = df.groupby(["sentence_key", "cohort"])[["pct_v", "pct_c", "schwa_p75_ms"]].agg(["mean", "std"]).round(2)
     print(summary.to_string())
-    print("=" * 85)
-    print(f"\n💾 詳細データ保存先: {csv_path}")
 
 
 if __name__ == "__main__":

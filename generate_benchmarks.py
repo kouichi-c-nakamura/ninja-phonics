@@ -4,33 +4,42 @@ import json
 import time
 import subprocess
 import requests
-from dotenv import load_dotenv
 
-load_dotenv(override=True)
 ELEVEN_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 if not ELEVEN_API_KEY:
-    raise ValueError("環境変数 ELEVENLABS_API_KEY を設定してください。")
+    raise ValueError("Environment variable ELEVENLABS_API_KEY must be set.")
 
 HEADERS = {
     "xi-api-key": ELEVEN_API_KEY,
     "Content-Type": "application/json"
 }
 
-# お題スクリプト（英語原文 vs 強制モーラ化カタカナ原稿）
-SCRIPT_EN = "A photograph of a famous photographer was taken in the station."
-SCRIPT_KATAKANA = "ア フォトグラフ オブ ア フェイマス フォトグラファー ワズ テイクン イン ザ ステーション"
+# The 3 Diagnostic Sentences (English vs. Forced-Mora Katakana)
+PASSAGES = {
+    "S1_stress": {
+        "en": "A photograph of a famous photographer was taken in the station.",
+        "ja": "ア フォトグラフ オブ ア フェイマス フォトグラファー ワズ テイクン イン ザ ステーション"
+    },
+    "S2_clusters": {
+        "en": "Strict instructors asked complex questions about the project tests.",
+        "ja": "ストリクト インストラクターズ アスクト コンプレックス クエスチョンズ アバウト ザ プロジェクト テスツ"
+    },
+    "S3_connected": {
+        "en": "Can you give him a cup of water from the kitchen at lunch?",
+        "ja": "キャン ユー ギブ ヒム ア カップ オブ ウォーター フロム ザ キッチン アット ランチ"
+    }
+}
 
 OUTPUT_DIR = "benchmarks"
 MANIFEST_PATH = os.path.join(OUTPUT_DIR, "manifest.json")
 
 
 def fetch_candidate_voices():
-    """自分のアカウント内のボイス + 共有Voice Libraryから候補を取得"""
+    """Retrieve available voices from personal library and shared voices."""
     candidates = {"uk": [], "us": [], "jp": []}
 
-    # 1. デフォルト・マイボイスの取得
     r = requests.get("https://api.elevenlabs.io/v1/voices", headers=HEADERS)
     if r.status_code == 200:
         for v in r.json().get("voices", []):
@@ -52,7 +61,6 @@ def fetch_candidate_voices():
             elif "japanese" in accent:
                 candidates["jp"].append(info)
 
-    # 2. 不足分（特にJapaneseや多様なUK/US）を共有ライブラリから検索補完
     search_queries = [
         ("uk", {"accent": "british", "page_size": 30}),
         ("us", {"accent": "american", "page_size": 30}),
@@ -87,23 +95,18 @@ def fetch_candidate_voices():
     return candidates
 
 
-def select_10_per_group_with_llm(candidates: dict, target_count: int = 10):
-    """Gemini APIを用いて男女比・会話調のバランスが良い各10名を自動選抜（未設定時はルールベース）"""
+def select_10_per_group(candidates: dict, target_count: int = 10):
+    """Select balanced speaker lists via Gemini (or rule-based fallback)."""
     if GEMINI_API_KEY:
         try:
             from google import genai
             client = genai.Client(api_key=GEMINI_API_KEY)
             prompt = f"""
-あなたは音声学ベンチマーク構築のエキスパートです。
-以下のElevenLabsボイス候補リスト（uk, us, jp）から、各グループ最大 {target_count} 個の `voice_id` を選抜してください。
-
-【選抜基準】
-1. 男女比（female / male）ができるだけ均等になるように選ぶこと。
-2. 極端なキャラクターボイス（monster, child, robot等）は除外し、conversational または narrative な自然な声を選ぶこと。
-3. JSON形式で以下のキー構成のみを出力すること:
+Select up to {target_count} natural conversational voices for 'uk', 'us', and 'jp' from the list.
+Maintain equal gender balance where possible. Output strictly valid JSON:
 {{"uk": ["id1", ...], "us": ["id1", ...], "jp": ["id1", ...]}}
 
-候補データ:
+Candidates:
 {json.dumps(candidates, ensure_ascii=False)}
 """
             resp = client.models.generate_content(
@@ -116,36 +119,29 @@ def select_10_per_group_with_llm(candidates: dict, target_count: int = 10):
             for k in ["uk", "us", "jp"]:
                 id_set = set(selected_ids.get(k, []))
                 picked = [v for v in candidates[k] if v["voice_id"] in id_set][:target_count]
-                if len(picked) < target_count:
-                    # 足りない分を先頭から補完
-                    for v in candidates[k]:
-                        if v not in picked and len(picked) < target_count:
-                            picked.append(v)
+                for v in candidates[k]:
+                    if v not in picked and len(picked) < target_count:
+                        picked.append(v)
                 result[k] = picked
-            print("✅ Gemini Agentによる最適ボイス選抜が完了しました。")
             return result
         except Exception as e:
-            print(f"⚠️ Gemini選抜スキップ（ルールベース選抜へ切替）: {e}")
+            print(f"Fallback selection triggered: {e}")
 
-    # フォールバック：男女交互にルールベース選抜
     result = {}
     for k in ["uk", "us", "jp"]:
         females = [v for v in candidates[k] if str(v["gender"]).lower() == "female"]
         males = [v for v in candidates[k] if str(v["gender"]).lower() == "male"]
-        others = [v for v in candidates[k] if str(v["gender"]).lower() not in ("female", "male")]
         interleaved = []
-        for i in range(max(len(females), len(males), len(others))):
+        for i in range(max(len(females), len(males))):
             if i < len(females): interleaved.append(females[i])
             if i < len(males): interleaved.append(males[i])
-            if i < len(others): interleaved.append(others[i])
         result[k] = interleaved[:target_count]
     return result
 
 
 def synthesize_to_wav(voice_id: str, text: str, out_wav_path: str, lang_code: str = None):
-    """ElevenLabs APIでMP3を生成し、ffmpegで44.1kHz 16bit mono WAVに変換"""
+    """Synthesize speech via ElevenLabs and standardize to 44.1kHz mono WAV."""
     if os.path.exists(out_wav_path):
-        print(f"  [Skip] 既に存在します: {out_wav_path}")
         return True
 
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -163,14 +159,13 @@ def synthesize_to_wav(voice_id: str, text: str, out_wav_path: str, lang_code: st
 
     r = requests.post(url, json=payload, headers=HEADERS)
     if r.status_code != 200:
-        print(f"  [Error] TTS失敗 ({voice_id}): {r.status_code} {r.text[:120]}")
+        print(f"  [TTS Error] {voice_id}: {r.status_code}")
         return False
 
     tmp_mp3 = out_wav_path.replace(".wav", "_tmp.mp3")
     with open(tmp_mp3, "wb") as f:
         f.write(r.content)
 
-    # ffmpeg で 44.1kHz 16-bit mono WAV へ変換
     cmd = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-i", tmp_mp3,
@@ -178,51 +173,63 @@ def synthesize_to_wav(voice_id: str, text: str, out_wav_path: str, lang_code: st
         out_wav_path
     ]
     subprocess.run(cmd, check=True)
-    os.remove(tmp_mp3)
-    time.sleep(0.4)  # APIレートリミット配慮
+    if os.path.exists(tmp_mp3):
+        os.remove(tmp_mp3)
+    time.sleep(0.35)
     return True
 
 
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    print("🔍 ElevenLabsからボイス候補を検索中...")
     candidates = fetch_candidate_voices()
-    print(f"  候補数 -> UK: {len(candidates['uk'])}, US: {len(candidates['us'])}, JP: {len(candidates['jp'])}")
+    selected = select_10_per_group(candidates, target_count=10)
 
-    selected = select_10_per_group_with_llm(candidates, target_count=10)
+    # Persist selected voice IDs so the speaker cohort remains identical across runs
+    voice_registry_path = os.path.join(OUTPUT_DIR, "voice_registry.json")
+    with open(voice_registry_path, "w", encoding="utf-8") as f:
+        json.dump(selected, f, indent=2, ensure_ascii=False)
 
-    manifest = []
     cohorts = [
-        ("UK-Native", selected["uk"], SCRIPT_EN, "en"),
-        ("US-Native", selected["us"], SCRIPT_EN, "en"),
-        ("JP-Accented", selected["jp"], SCRIPT_EN, None),
-        ("JP-Mora-Forced", selected["jp"], SCRIPT_KATAKANA, "ja"),
+        ("UK-Native", selected["uk"], "en", "en"),
+        ("US-Native", selected["us"], "en", "en"),
+        ("JP-Accented", selected["jp"], "en", None),
+        ("JP-Mora-Forced", selected["jp"], "ja", "ja"),
     ]
 
-    for cohort_name, voice_list, script_text, lang_code in cohorts:
-        cohort_dir = os.path.join(OUTPUT_DIR, cohort_name)
-        os.makedirs(cohort_dir, exist_ok=True)
-        print(f"\n🎙️ コホート生成中: {cohort_name} ({len(voice_list)} voices)")
+    manifest = []
 
-        for idx, v in enumerate(voice_list, 1):
-            safe_name = re.sub(r"[^a-zA-Z0-9]", "", v["name"])[:12] or f"v{idx}"
-            filename = f"{cohort_name}_{idx:02d}_{safe_name}_{v['gender']}.wav"
-            wav_path = os.path.join(cohort_dir, filename)
+    for sentence_key, script_dict in PASSAGES.items():
+        print(f"\n========================================================")
+        print(f"🎬 Processing Sentence: {sentence_key}")
+        print(f"========================================================")
 
-            print(f"  ({idx}/{len(voice_list)}) Generating {filename} ...")
-            ok = synthesize_to_wav(v["voice_id"], script_text, wav_path, lang_code=lang_code)
-            if ok:
-                manifest.append({
-                    "cohort": cohort_name,
-                    "voice_id": v["voice_id"],
-                    "name": v["name"],
-                    "gender": v["gender"],
-                    "wav_path": wav_path
-                })
+        for cohort_name, voice_list, text_key, lang_code in cohorts:
+            cohort_dir = os.path.join(OUTPUT_DIR, sentence_key, cohort_name)
+            os.makedirs(cohort_dir, exist_ok=True)
+            text_to_read = script_dict[text_key]
+
+            print(f"  Generating {cohort_name} ({len(voice_list)} voices)...")
+
+            for idx, v in enumerate(voice_list, 1):
+                safe_name = re.sub(r"[^a-zA-Z0-9]", "", v["name"])[:12] or f"v{idx}"
+                filename = f"{cohort_name}_{idx:02d}_{safe_name}_{v['gender']}.wav"
+                wav_path = os.path.join(cohort_dir, filename)
+
+                ok = synthesize_to_wav(v["voice_id"], text_to_read, wav_path, lang_code=lang_code)
+                if ok:
+                    manifest.append({
+                        "sentence_key": sentence_key,
+                        "cohort": cohort_name,
+                        "voice_id": v["voice_id"],
+                        "name": v["name"],
+                        "gender": v["gender"],
+                        "wav_path": wav_path,
+                        "reference_en": script_dict["en"]
+                    })
 
     with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
-    print(f"\n✨ 全ベンチマーク音声の生成完了！マニフェスト保存先: {MANIFEST_PATH}")
+    print(f"\nGeneration complete. Total audio files: {len(manifest)}. Manifest: {MANIFEST_PATH}")
 
 
 if __name__ == "__main__":

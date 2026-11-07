@@ -1,282 +1,1082 @@
 [
   {
-    "cohort": "UK-Native",
-    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
-    "name": "George - Warm, Captivating Storyteller",
-    "gender": "male",
-    "wav_path": "benchmarks/UK-Native/UK-Native_01_GeorgeWarmCa_male.wav"
-  },
-  {
-    "cohort": "UK-Native",
-    "voice_id": "Xb7hH8MSUJpSbSDYk0k2",
-    "name": "Alice - Clear, Engaging Educator",
-    "gender": "female",
-    "wav_path": "benchmarks/UK-Native/UK-Native_02_AliceClearEn_female.wav"
-  },
-  {
+    "sentence_key": "S1_stress",
     "cohort": "UK-Native",
     "voice_id": "Fahco4VZzobUeiPqni1S",
     "name": "Archer - Conversational",
     "gender": "male",
-    "wav_path": "benchmarks/UK-Native/UK-Native_03_ArcherConver_male.wav"
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_01_ArcherConver_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "UK-Native",
     "voice_id": "exsUS4vynmxd379XN4yO",
     "name": "Blondie - Conversational",
     "gender": "female",
-    "wav_path": "benchmarks/UK-Native/UK-Native_04_BlondieConve_female.wav"
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_02_BlondieConve_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
-    "cohort": "UK-Native",
-    "voice_id": "AXdMgz6evoL7OPd7eU12",
-    "name": "Elizabeth - Precise, Clear and Natural",
-    "gender": "female",
-    "wav_path": "benchmarks/UK-Native/UK-Native_05_ElizabethPre_female.wav"
-  },
-  {
+    "sentence_key": "S1_stress",
     "cohort": "UK-Native",
     "voice_id": "lcMyyd2HUfFzxdCaC4Ta",
     "name": "Lucy - Fresh & Casual",
     "gender": "female",
-    "wav_path": "benchmarks/UK-Native/UK-Native_06_LucyFreshCas_female.wav"
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_03_LucyFreshCas_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
-    "cohort": "UK-Native",
-    "voice_id": "AeRdCCKzvd23BpJoofzx",
-    "name": "Nathaniel - Engaging, British and Calm",
-    "gender": "male",
-    "wav_path": "benchmarks/UK-Native/UK-Native_07_NathanielEng_male.wav"
-  },
-  {
-    "cohort": "UK-Native",
-    "voice_id": "aE4DwcckP6CgAm5UAzso",
-    "name": "Olivia - British female, e-learning",
-    "gender": "female",
-    "wav_path": "benchmarks/UK-Native/UK-Native_08_OliviaBritis_female.wav"
-  },
-  {
+    "sentence_key": "S1_stress",
     "cohort": "UK-Native",
     "voice_id": "1LECWyROimjWHAqjvjqa",
-    "name": "Leon - Polite, Warm",
+    "name": "Leon",
     "gender": "male",
-    "wav_path": "benchmarks/UK-Native/UK-Native_09_LeonPoliteWa_male.wav"
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_04_Leon_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "UK-Native",
-    "voice_id": "KcYifkkXnm0uVkvvr7rD",
-    "name": "David - Expressive British Storyteller",
+    "voice_id": "L0Dsvb3SLTyegXwtm47J",
+    "name": "Archer",
     "gender": "male",
-    "wav_path": "benchmarks/UK-Native/UK-Native_10_DavidExpress_male.wav"
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_05_Archer_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
+    "cohort": "UK-Native",
+    "voice_id": "5hZv9mAOcmcMt1TxA5Iz",
+    "name": "Tom",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_06_Tom_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "UK-Native",
+    "voice_id": "MNUBQXVM4SBzrA4AbVeB",
+    "name": "Fraser - Fintech & Banking AI Agent",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_07_FraserFintec_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "UK-Native",
+    "voice_id": "wiF43F1vngB3iRFsbWhJ",
+    "name": "Nathaniel - Natural, Stylish Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_08_NathanielNat_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "UK-Native",
+    "voice_id": "uiwrDUnxv7K5Wwe9eO35",
+    "name": "Tyler - Pleasant, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_09_TylerPleasan_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "UK-Native",
+    "voice_id": "EtBr43MW0sMHh44Pdij6",
+    "name": "Trinity X - Conversational, Captivating",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/UK-Native/UK-Native_10_TrinityXConv_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
     "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
     "name": "Roger - Laid-Back, Casual, Resonant",
     "gender": "male",
-    "wav_path": "benchmarks/US-Native/US-Native_01_RogerLaidBac_male.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_01_RogerLaidBac_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
-    "voice_id": "XrExE9yKIg1WjnnlVkGX",
-    "name": "Matilda - Knowledgable, Professional",
-    "gender": "female",
-    "wav_path": "benchmarks/US-Native/US-Native_02_MatildaKnowl_female.wav"
+    "voice_id": "bIHbv24MWmeRgasZH58o",
+    "name": "Will - Relaxed Optimist",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_02_WillRelaxedO_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
+    "cohort": "US-Native",
+    "voice_id": "cgSgspJ2msm6clMCkdW9",
+    "name": "Jessica - Playful, Bright, Warm",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_03_JessicaPlayf_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
     "voice_id": "cjVigY5qzO86Huf0OWal",
     "name": "Eric - Smooth, Trustworthy",
     "gender": "male",
-    "wav_path": "benchmarks/US-Native/US-Native_03_EricSmoothTr_male.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_04_EricSmoothTr_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
-    "cohort": "US-Native",
-    "voice_id": "hpp4J3VqNfWAUOO0d1Us",
-    "name": "Bella - Professional, Bright, Warm",
-    "gender": "female",
-    "wav_path": "benchmarks/US-Native/US-Native_04_BellaProfess_female.wav"
-  },
-  {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
     "voice_id": "iP95p4xoKVk53GoZ742B",
     "name": "Chris - Charming, Down-to-Earth",
     "gender": "male",
-    "wav_path": "benchmarks/US-Native/US-Native_05_ChrisCharmin_male.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_05_ChrisCharmin_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
-    "voice_id": "s3TPKV1kjDlVtZbl4Ksh",
-    "name": "Adam - Engaging, Friendly and Bright",
+    "voice_id": "Gubgw9l4dtIoQA9YZHgx",
+    "name": "Brian - Deep, Resonant and Comforting",
     "gender": "male",
-    "wav_path": "benchmarks/US-Native/US-Native_06_AdamEngaging_male.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_06_BrianDeepRes_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
     "voice_id": "EST9Ui6982FZPSi7gCHi",
     "name": "Elise – Warm, Natural and Engaging",
     "gender": "female",
-    "wav_path": "benchmarks/US-Native/US-Native_07_EliseWarmNat_female.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_07_EliseWarmNat_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
-    "voice_id": "1cuDPO8sIMatoOE4Z2Zv",
-    "name": "Dan - African American calm & friendly",
-    "gender": "male",
-    "wav_path": "benchmarks/US-Native/US-Native_08_DanAfricanAm_male.wav"
-  },
-  {
-    "cohort": "US-Native",
-    "voice_id": "DODLEQrClDo8wCz460ld",
-    "name": "Lauren - Friendly, Comforting and Soft",
+    "voice_id": "56AoDkrOh6qfVPDXZ7Pt",
+    "name": "Cassidy",
     "gender": "female",
-    "wav_path": "benchmarks/US-Native/US-Native_09_LaurenFriend_female.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_08_Cassidy_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "US-Native",
-    "voice_id": "XfNU2rGpBa01ckF309OY",
-    "name": "Nichalia Schwartz - Friendly, Bright 20s-30s",
+    "voice_id": "uYXf8XasLslADfZ2MB4u",
+    "name": "Hope- Your conversational bestie",
     "gender": "female",
-    "wav_path": "benchmarks/US-Native/US-Native_10_NichaliaSchw_female.wav"
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_09_HopeYourconv_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
+    "cohort": "US-Native",
+    "voice_id": "g6xIsTj2HwM6VR4iXFCw",
+    "name": "Jessica Anne Bogart - Conversational Ai",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/US-Native/US-Native_10_JessicaAnneB_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Accented",
-    "voice_id": "qiDSZKWPD8GcI15QYpQw",
-    "name": "Frank - Japanese ",
-    "gender": "male",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_01_FrankJapanes_male.wav"
+    "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+    "name": "Mitami - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_01_MitamiConver_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Accented",
     "voice_id": "4UeMMcJzBVRXxesigZKz",
     "name": "Believe - Calm Japanese Male",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_02_BelieveCalmJ_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_02_BelieveCalmJ_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
-    "cohort": "JP-Accented",
-    "voice_id": "XqU2UWV8Vx1jxIkWGuhk",
-    "name": "Ryo - Calm & Gentle Japanese Male",
-    "gender": "male",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_03_RyoCalmGentl_male.wav"
-  },
-  {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Accented",
     "voice_id": "39Vd88odsfMFSYn3pQ7i",
     "name": "Makoto-san - Warm, Friendly AI Assistant",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_04_MakotosanWar_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_03_MakotosanWar_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Accented",
-    "voice_id": "qtZU80V9mb7jMTtOMfcs",
-    "name": "Aiko - Bright Japanese Narrator",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_05_AikoBrightJa_female.wav"
-  },
-  {
-    "cohort": "JP-Accented",
-    "voice_id": "vTVmhKfrm9mZeTBzRTvR",
-    "name": "Mika - Clear, Bright & Engaging Japanese",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_06_MikaClearBri_female.wav"
-  },
-  {
-    "cohort": "JP-Accented",
-    "voice_id": "P85Ck7s3ztttEfam556O",
-    "name": "Hana - Japanese, Bright & Professional",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_07_HanaJapanese_female.wav"
-  },
-  {
-    "cohort": "JP-Accented",
-    "voice_id": "dx81v2cGW5VIGRXDTLfY",
-    "name": "Sakura - Gentle & Natural",
+    "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+    "name": "Riu - Calm Japanese Male",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_08_SakuraGentle_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_04_RiuCalmJapan_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Accented",
+    "voice_id": "DGdsO0coev6qI1BF9xJP",
+    "name": "Fu-chan - Calm tone",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_05_FuchanCalmto_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Accented",
+    "voice_id": "30Bl9aRayVzd7rYeBNHc",
+    "name": "Kaori - Cute & Calm Japanese Actor",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_06_KaoriCuteCal_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Accented",
     "voice_id": "Xe358ecHiAMPqKeziEUB",
     "name": "Aaa - Native Japanese Conversation",
     "gender": "female",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_09_AaaNativeJap_female.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_07_AaaNativeJap_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Accented",
-    "voice_id": "3fjRiFR1qpMZpeqXtmwX",
-    "name": "Soya - Clear& Bright",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Accented/JP-Accented_10_SoyaClearBri_female.wav"
+    "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+    "name": "Akio shima - Rich, Deep Japanese Actor",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_08_AkioshimaRic_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
-    "cohort": "JP-Mora-Forced",
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Accented",
     "voice_id": "qiDSZKWPD8GcI15QYpQw",
     "name": "Frank - Japanese ",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_01_FrankJapanes_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_09_FrankJapanes_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Accented",
+    "voice_id": "jyogAI7BN5DyoykAgSk6",
+    "name": "Ryo Kazuma - Deep, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Accented/JP-Accented_10_RyoKazumaDee_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+    "name": "Mitami - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_01_MitamiConver_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Mora-Forced",
     "voice_id": "4UeMMcJzBVRXxesigZKz",
     "name": "Believe - Calm Japanese Male",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_02_BelieveCalmJ_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_02_BelieveCalmJ_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
-    "cohort": "JP-Mora-Forced",
-    "voice_id": "XqU2UWV8Vx1jxIkWGuhk",
-    "name": "Ryo - Calm & Gentle Japanese Male",
-    "gender": "male",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_03_RyoCalmGentl_male.wav"
-  },
-  {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Mora-Forced",
     "voice_id": "39Vd88odsfMFSYn3pQ7i",
     "name": "Makoto-san - Warm, Friendly AI Assistant",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_04_MakotosanWar_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_03_MakotosanWar_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Mora-Forced",
-    "voice_id": "qtZU80V9mb7jMTtOMfcs",
-    "name": "Aiko - Bright Japanese Narrator",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_05_AikoBrightJa_female.wav"
-  },
-  {
-    "cohort": "JP-Mora-Forced",
-    "voice_id": "vTVmhKfrm9mZeTBzRTvR",
-    "name": "Mika - Clear, Bright & Engaging Japanese",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_06_MikaClearBri_female.wav"
-  },
-  {
-    "cohort": "JP-Mora-Forced",
-    "voice_id": "P85Ck7s3ztttEfam556O",
-    "name": "Hana - Japanese, Bright & Professional",
-    "gender": "female",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_07_HanaJapanese_female.wav"
-  },
-  {
-    "cohort": "JP-Mora-Forced",
-    "voice_id": "dx81v2cGW5VIGRXDTLfY",
-    "name": "Sakura - Gentle & Natural",
+    "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+    "name": "Riu - Calm Japanese Male",
     "gender": "male",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_08_SakuraGentle_male.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_04_RiuCalmJapan_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "DGdsO0coev6qI1BF9xJP",
+    "name": "Fu-chan - Calm tone",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_05_FuchanCalmto_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "30Bl9aRayVzd7rYeBNHc",
+    "name": "Kaori - Cute & Calm Japanese Actor",
+    "gender": "female",
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_06_KaoriCuteCal_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Mora-Forced",
     "voice_id": "Xe358ecHiAMPqKeziEUB",
     "name": "Aaa - Native Japanese Conversation",
     "gender": "female",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_09_AaaNativeJap_female.wav"
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_07_AaaNativeJap_female.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
   },
   {
+    "sentence_key": "S1_stress",
     "cohort": "JP-Mora-Forced",
-    "voice_id": "3fjRiFR1qpMZpeqXtmwX",
-    "name": "Soya - Clear& Bright",
+    "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+    "name": "Akio shima - Rich, Deep Japanese Actor",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_08_AkioshimaRic_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_09_FrankJapanes_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S1_stress",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "jyogAI7BN5DyoykAgSk6",
+    "name": "Ryo Kazuma - Deep, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S1_stress/JP-Mora-Forced/JP-Mora-Forced_10_RyoKazumaDee_male.wav",
+    "reference_en": "A photograph of a famous photographer was taken in the station."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "Fahco4VZzobUeiPqni1S",
+    "name": "Archer - Conversational",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_01_ArcherConver_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "exsUS4vynmxd379XN4yO",
+    "name": "Blondie - Conversational",
     "gender": "female",
-    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_10_SoyaClearBri_female.wav"
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_02_BlondieConve_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "lcMyyd2HUfFzxdCaC4Ta",
+    "name": "Lucy - Fresh & Casual",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_03_LucyFreshCas_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "1LECWyROimjWHAqjvjqa",
+    "name": "Leon",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_04_Leon_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "L0Dsvb3SLTyegXwtm47J",
+    "name": "Archer",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_05_Archer_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "5hZv9mAOcmcMt1TxA5Iz",
+    "name": "Tom",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_06_Tom_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "MNUBQXVM4SBzrA4AbVeB",
+    "name": "Fraser - Fintech & Banking AI Agent",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_07_FraserFintec_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "wiF43F1vngB3iRFsbWhJ",
+    "name": "Nathaniel - Natural, Stylish Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_08_NathanielNat_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "uiwrDUnxv7K5Wwe9eO35",
+    "name": "Tyler - Pleasant, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_09_TylerPleasan_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "UK-Native",
+    "voice_id": "EtBr43MW0sMHh44Pdij6",
+    "name": "Trinity X - Conversational, Captivating",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/UK-Native/UK-Native_10_TrinityXConv_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
+    "name": "Roger - Laid-Back, Casual, Resonant",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_01_RogerLaidBac_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "bIHbv24MWmeRgasZH58o",
+    "name": "Will - Relaxed Optimist",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_02_WillRelaxedO_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "cgSgspJ2msm6clMCkdW9",
+    "name": "Jessica - Playful, Bright, Warm",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_03_JessicaPlayf_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "cjVigY5qzO86Huf0OWal",
+    "name": "Eric - Smooth, Trustworthy",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_04_EricSmoothTr_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "iP95p4xoKVk53GoZ742B",
+    "name": "Chris - Charming, Down-to-Earth",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_05_ChrisCharmin_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "Gubgw9l4dtIoQA9YZHgx",
+    "name": "Brian - Deep, Resonant and Comforting",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_06_BrianDeepRes_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "EST9Ui6982FZPSi7gCHi",
+    "name": "Elise – Warm, Natural and Engaging",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_07_EliseWarmNat_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "56AoDkrOh6qfVPDXZ7Pt",
+    "name": "Cassidy",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_08_Cassidy_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "uYXf8XasLslADfZ2MB4u",
+    "name": "Hope- Your conversational bestie",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_09_HopeYourconv_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "US-Native",
+    "voice_id": "g6xIsTj2HwM6VR4iXFCw",
+    "name": "Jessica Anne Bogart - Conversational Ai",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/US-Native/US-Native_10_JessicaAnneB_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+    "name": "Mitami - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_01_MitamiConver_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "4UeMMcJzBVRXxesigZKz",
+    "name": "Believe - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_02_BelieveCalmJ_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "39Vd88odsfMFSYn3pQ7i",
+    "name": "Makoto-san - Warm, Friendly AI Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_03_MakotosanWar_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+    "name": "Riu - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_04_RiuCalmJapan_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "DGdsO0coev6qI1BF9xJP",
+    "name": "Fu-chan - Calm tone",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_05_FuchanCalmto_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "30Bl9aRayVzd7rYeBNHc",
+    "name": "Kaori - Cute & Calm Japanese Actor",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_06_KaoriCuteCal_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "Xe358ecHiAMPqKeziEUB",
+    "name": "Aaa - Native Japanese Conversation",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_07_AaaNativeJap_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+    "name": "Akio shima - Rich, Deep Japanese Actor",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_08_AkioshimaRic_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_09_FrankJapanes_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Accented",
+    "voice_id": "jyogAI7BN5DyoykAgSk6",
+    "name": "Ryo Kazuma - Deep, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Accented/JP-Accented_10_RyoKazumaDee_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+    "name": "Mitami - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_01_MitamiConver_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "4UeMMcJzBVRXxesigZKz",
+    "name": "Believe - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_02_BelieveCalmJ_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "39Vd88odsfMFSYn3pQ7i",
+    "name": "Makoto-san - Warm, Friendly AI Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_03_MakotosanWar_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+    "name": "Riu - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_04_RiuCalmJapan_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "DGdsO0coev6qI1BF9xJP",
+    "name": "Fu-chan - Calm tone",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_05_FuchanCalmto_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "30Bl9aRayVzd7rYeBNHc",
+    "name": "Kaori - Cute & Calm Japanese Actor",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_06_KaoriCuteCal_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "Xe358ecHiAMPqKeziEUB",
+    "name": "Aaa - Native Japanese Conversation",
+    "gender": "female",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_07_AaaNativeJap_female.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+    "name": "Akio shima - Rich, Deep Japanese Actor",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_08_AkioshimaRic_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_09_FrankJapanes_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S2_clusters",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "jyogAI7BN5DyoykAgSk6",
+    "name": "Ryo Kazuma - Deep, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S2_clusters/JP-Mora-Forced/JP-Mora-Forced_10_RyoKazumaDee_male.wav",
+    "reference_en": "Strict instructors asked complex questions about the project tests."
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "Fahco4VZzobUeiPqni1S",
+    "name": "Archer - Conversational",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_01_ArcherConver_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "exsUS4vynmxd379XN4yO",
+    "name": "Blondie - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_02_BlondieConve_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "lcMyyd2HUfFzxdCaC4Ta",
+    "name": "Lucy - Fresh & Casual",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_03_LucyFreshCas_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "1LECWyROimjWHAqjvjqa",
+    "name": "Leon",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_04_Leon_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "L0Dsvb3SLTyegXwtm47J",
+    "name": "Archer",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_05_Archer_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "5hZv9mAOcmcMt1TxA5Iz",
+    "name": "Tom",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_06_Tom_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "MNUBQXVM4SBzrA4AbVeB",
+    "name": "Fraser - Fintech & Banking AI Agent",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_07_FraserFintec_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "wiF43F1vngB3iRFsbWhJ",
+    "name": "Nathaniel - Natural, Stylish Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_08_NathanielNat_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "uiwrDUnxv7K5Wwe9eO35",
+    "name": "Tyler - Pleasant, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_09_TylerPleasan_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "UK-Native",
+    "voice_id": "EtBr43MW0sMHh44Pdij6",
+    "name": "Trinity X - Conversational, Captivating",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/UK-Native/UK-Native_10_TrinityXConv_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
+    "name": "Roger - Laid-Back, Casual, Resonant",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_01_RogerLaidBac_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "bIHbv24MWmeRgasZH58o",
+    "name": "Will - Relaxed Optimist",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_02_WillRelaxedO_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "cgSgspJ2msm6clMCkdW9",
+    "name": "Jessica - Playful, Bright, Warm",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_03_JessicaPlayf_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "cjVigY5qzO86Huf0OWal",
+    "name": "Eric - Smooth, Trustworthy",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_04_EricSmoothTr_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "iP95p4xoKVk53GoZ742B",
+    "name": "Chris - Charming, Down-to-Earth",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_05_ChrisCharmin_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "Gubgw9l4dtIoQA9YZHgx",
+    "name": "Brian - Deep, Resonant and Comforting",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_06_BrianDeepRes_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "EST9Ui6982FZPSi7gCHi",
+    "name": "Elise – Warm, Natural and Engaging",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_07_EliseWarmNat_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "56AoDkrOh6qfVPDXZ7Pt",
+    "name": "Cassidy",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_08_Cassidy_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "uYXf8XasLslADfZ2MB4u",
+    "name": "Hope- Your conversational bestie",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_09_HopeYourconv_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "US-Native",
+    "voice_id": "g6xIsTj2HwM6VR4iXFCw",
+    "name": "Jessica Anne Bogart - Conversational Ai",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/US-Native/US-Native_10_JessicaAnneB_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+    "name": "Mitami - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_01_MitamiConver_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "4UeMMcJzBVRXxesigZKz",
+    "name": "Believe - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_02_BelieveCalmJ_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "39Vd88odsfMFSYn3pQ7i",
+    "name": "Makoto-san - Warm, Friendly AI Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_03_MakotosanWar_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+    "name": "Riu - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_04_RiuCalmJapan_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "DGdsO0coev6qI1BF9xJP",
+    "name": "Fu-chan - Calm tone",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_05_FuchanCalmto_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "30Bl9aRayVzd7rYeBNHc",
+    "name": "Kaori - Cute & Calm Japanese Actor",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_06_KaoriCuteCal_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "Xe358ecHiAMPqKeziEUB",
+    "name": "Aaa - Native Japanese Conversation",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_07_AaaNativeJap_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+    "name": "Akio shima - Rich, Deep Japanese Actor",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_08_AkioshimaRic_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_09_FrankJapanes_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Accented",
+    "voice_id": "jyogAI7BN5DyoykAgSk6",
+    "name": "Ryo Kazuma - Deep, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Accented/JP-Accented_10_RyoKazumaDee_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+    "name": "Mitami - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_01_MitamiConver_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "4UeMMcJzBVRXxesigZKz",
+    "name": "Believe - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_02_BelieveCalmJ_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "39Vd88odsfMFSYn3pQ7i",
+    "name": "Makoto-san - Warm, Friendly AI Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_03_MakotosanWar_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+    "name": "Riu - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_04_RiuCalmJapan_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "DGdsO0coev6qI1BF9xJP",
+    "name": "Fu-chan - Calm tone",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_05_FuchanCalmto_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "30Bl9aRayVzd7rYeBNHc",
+    "name": "Kaori - Cute & Calm Japanese Actor",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_06_KaoriCuteCal_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "Xe358ecHiAMPqKeziEUB",
+    "name": "Aaa - Native Japanese Conversation",
+    "gender": "female",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_07_AaaNativeJap_female.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+    "name": "Akio shima - Rich, Deep Japanese Actor",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_08_AkioshimaRic_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_09_FrankJapanes_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
+  },
+  {
+    "sentence_key": "S3_connected",
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "jyogAI7BN5DyoykAgSk6",
+    "name": "Ryo Kazuma - Deep, Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/S3_connected/JP-Mora-Forced/JP-Mora-Forced_10_RyoKazumaDee_male.wav",
+    "reference_en": "Can you give him a cup of water from the kitchen at lunch?"
   }
 ]

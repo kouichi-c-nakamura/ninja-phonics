@@ -1,0 +1,278 @@
+{
+  "uk": [
+    {
+      "voice_id": "Fahco4VZzobUeiPqni1S",
+      "name": "Archer - Conversational",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "british"
+    },
+    {
+      "voice_id": "exsUS4vynmxd379XN4yO",
+      "name": "Blondie - Conversational",
+      "gender": "female",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "british"
+    },
+    {
+      "voice_id": "lcMyyd2HUfFzxdCaC4Ta",
+      "name": "Lucy - Fresh & Casual",
+      "gender": "female",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "british"
+    },
+    {
+      "voice_id": "1LECWyROimjWHAqjvjqa",
+      "name": "Leon",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "british"
+    },
+    {
+      "voice_id": "L0Dsvb3SLTyegXwtm47J",
+      "name": "Archer",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "british"
+    },
+    {
+      "voice_id": "5hZv9mAOcmcMt1TxA5Iz",
+      "name": "Tom",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "british"
+    },
+    {
+      "voice_id": "MNUBQXVM4SBzrA4AbVeB",
+      "name": "Fraser - Fintech & Banking AI Agent",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "Designed for customer support, payment enquiries, account guidance and onboardin",
+      "accent": "british"
+    },
+    {
+      "voice_id": "wiF43F1vngB3iRFsbWhJ",
+      "name": "Nathaniel - Natural, Stylish Assistant",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "Smart, Crisp, Friendly — Nathaniel books your lunch, flags the four o’clock rain",
+      "accent": "british"
+    },
+    {
+      "voice_id": "uiwrDUnxv7K5Wwe9eO35",
+      "name": "Tyler - Pleasant, Calm",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "British calm male voice-over.",
+      "accent": "british"
+    },
+    {
+      "voice_id": "EtBr43MW0sMHh44Pdij6",
+      "name": "Trinity X - Conversational, Captivating",
+      "gender": "female",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "A warm, conversational British female voice with a subtle international influenc",
+      "accent": "british"
+    }
+  ],
+  "us": [
+    {
+      "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
+      "name": "Roger - Laid-Back, Casual, Resonant",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "bIHbv24MWmeRgasZH58o",
+      "name": "Will - Relaxed Optimist",
+      "gender": "male",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "cgSgspJ2msm6clMCkdW9",
+      "name": "Jessica - Playful, Bright, Warm",
+      "gender": "female",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "cjVigY5qzO86Huf0OWal",
+      "name": "Eric - Smooth, Trustworthy",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "iP95p4xoKVk53GoZ742B",
+      "name": "Chris - Charming, Down-to-Earth",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "Gubgw9l4dtIoQA9YZHgx",
+      "name": "Brian - Deep, Resonant and Comforting",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "EST9Ui6982FZPSi7gCHi",
+      "name": "Elise – Warm, Natural and Engaging",
+      "gender": "female",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "56AoDkrOh6qfVPDXZ7Pt",
+      "name": "Cassidy",
+      "gender": "female",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "uYXf8XasLslADfZ2MB4u",
+      "name": "Hope- Your conversational bestie",
+      "gender": "female",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    },
+    {
+      "voice_id": "g6xIsTj2HwM6VR4iXFCw",
+      "name": "Jessica Anne Bogart - Conversational Ai",
+      "gender": "female",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "",
+      "accent": "american"
+    }
+  ],
+  "jp": [
+    {
+      "voice_id": "qPRZQZwAlFbRZ3FSeWIl",
+      "name": "Mitami - Conversational",
+      "gender": "female",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "A Japanese woman's conversational voice.\n",
+      "accent": "kansai"
+    },
+    {
+      "voice_id": "4UeMMcJzBVRXxesigZKz",
+      "name": "Believe - Calm Japanese Male",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "Calm, natural conversational Japanese male voice in his 40s. Tokyo-standard acce",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "39Vd88odsfMFSYn3pQ7i",
+      "name": "Makoto-san - Warm, Friendly AI Assistant",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "Warm, friendly Japanese male voice for AI agents and customer support. Standard ",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+      "name": "Riu - Calm Japanese Male",
+      "gender": "male",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "A natural Japanese male voice with a medium-low pitch, a soft and slightly breat",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "DGdsO0coev6qI1BF9xJP",
+      "name": "Fu-chan - Calm tone",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "This is a male voice with a calm tone.\n",
+      "accent": "kanto"
+    },
+    {
+      "voice_id": "30Bl9aRayVzd7rYeBNHc",
+      "name": "Kaori - Cute & Calm Japanese Actor",
+      "gender": "female",
+      "age": "young",
+      "use_case": "conversational",
+      "description": "Warm, bright and friendly Japanese female voice with a cheerful radio-style deli",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "Xe358ecHiAMPqKeziEUB",
+      "name": "Aaa - Native Japanese Conversation",
+      "gender": "female",
+      "age": "middle_aged",
+      "use_case": "conversational",
+      "description": "A calm, clear native Japanese female voice for natural everyday conversation. Ea",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "BSPow8LcoXJ0UVg1ws3x",
+      "name": "Akio shima - Rich, Deep Japanese Actor",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "advertisement",
+      "description": "This voice is one of the many character voices performed by a versatile Japanese",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "qiDSZKWPD8GcI15QYpQw",
+      "name": "Frank - Japanese ",
+      "gender": "male",
+      "age": "young",
+      "use_case": "social_media",
+      "description": "A Japanese male voice characterized by a friendly, conversational tone. It is we",
+      "accent": "standard"
+    },
+    {
+      "voice_id": "jyogAI7BN5DyoykAgSk6",
+      "name": "Ryo Kazuma - Deep, Calm",
+      "gender": "male",
+      "age": "middle_aged",
+      "use_case": "entertainment_tv",
+      "description": "I have voiced numerous Japanese channels, with my featured works surpassing 4 bi",
+      "accent": "standard"
+    }
+  ]
+}

@@ -1,0 +1,282 @@
+[
+  {
+    "cohort": "UK-Native",
+    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+    "name": "George - Warm, Captivating Storyteller",
+    "gender": "male",
+    "wav_path": "benchmarks/UK-Native/UK-Native_01_GeorgeWarmCa_male.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "Xb7hH8MSUJpSbSDYk0k2",
+    "name": "Alice - Clear, Engaging Educator",
+    "gender": "female",
+    "wav_path": "benchmarks/UK-Native/UK-Native_02_AliceClearEn_female.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "Fahco4VZzobUeiPqni1S",
+    "name": "Archer - Conversational",
+    "gender": "male",
+    "wav_path": "benchmarks/UK-Native/UK-Native_03_ArcherConver_male.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "exsUS4vynmxd379XN4yO",
+    "name": "Blondie - Conversational",
+    "gender": "female",
+    "wav_path": "benchmarks/UK-Native/UK-Native_04_BlondieConve_female.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "AXdMgz6evoL7OPd7eU12",
+    "name": "Elizabeth - Precise, Clear and Natural",
+    "gender": "female",
+    "wav_path": "benchmarks/UK-Native/UK-Native_05_ElizabethPre_female.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "lcMyyd2HUfFzxdCaC4Ta",
+    "name": "Lucy - Fresh & Casual",
+    "gender": "female",
+    "wav_path": "benchmarks/UK-Native/UK-Native_06_LucyFreshCas_female.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "AeRdCCKzvd23BpJoofzx",
+    "name": "Nathaniel - Engaging, British and Calm",
+    "gender": "male",
+    "wav_path": "benchmarks/UK-Native/UK-Native_07_NathanielEng_male.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "aE4DwcckP6CgAm5UAzso",
+    "name": "Olivia - British female, e-learning",
+    "gender": "female",
+    "wav_path": "benchmarks/UK-Native/UK-Native_08_OliviaBritis_female.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "1LECWyROimjWHAqjvjqa",
+    "name": "Leon - Polite, Warm",
+    "gender": "male",
+    "wav_path": "benchmarks/UK-Native/UK-Native_09_LeonPoliteWa_male.wav"
+  },
+  {
+    "cohort": "UK-Native",
+    "voice_id": "KcYifkkXnm0uVkvvr7rD",
+    "name": "David - Expressive British Storyteller",
+    "gender": "male",
+    "wav_path": "benchmarks/UK-Native/UK-Native_10_DavidExpress_male.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
+    "name": "Roger - Laid-Back, Casual, Resonant",
+    "gender": "male",
+    "wav_path": "benchmarks/US-Native/US-Native_01_RogerLaidBac_male.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "XrExE9yKIg1WjnnlVkGX",
+    "name": "Matilda - Knowledgable, Professional",
+    "gender": "female",
+    "wav_path": "benchmarks/US-Native/US-Native_02_MatildaKnowl_female.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "cjVigY5qzO86Huf0OWal",
+    "name": "Eric - Smooth, Trustworthy",
+    "gender": "male",
+    "wav_path": "benchmarks/US-Native/US-Native_03_EricSmoothTr_male.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "hpp4J3VqNfWAUOO0d1Us",
+    "name": "Bella - Professional, Bright, Warm",
+    "gender": "female",
+    "wav_path": "benchmarks/US-Native/US-Native_04_BellaProfess_female.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "iP95p4xoKVk53GoZ742B",
+    "name": "Chris - Charming, Down-to-Earth",
+    "gender": "male",
+    "wav_path": "benchmarks/US-Native/US-Native_05_ChrisCharmin_male.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "s3TPKV1kjDlVtZbl4Ksh",
+    "name": "Adam - Engaging, Friendly and Bright",
+    "gender": "male",
+    "wav_path": "benchmarks/US-Native/US-Native_06_AdamEngaging_male.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "EST9Ui6982FZPSi7gCHi",
+    "name": "Elise – Warm, Natural and Engaging",
+    "gender": "female",
+    "wav_path": "benchmarks/US-Native/US-Native_07_EliseWarmNat_female.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "1cuDPO8sIMatoOE4Z2Zv",
+    "name": "Dan - African American calm & friendly",
+    "gender": "male",
+    "wav_path": "benchmarks/US-Native/US-Native_08_DanAfricanAm_male.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "DODLEQrClDo8wCz460ld",
+    "name": "Lauren - Friendly, Comforting and Soft",
+    "gender": "female",
+    "wav_path": "benchmarks/US-Native/US-Native_09_LaurenFriend_female.wav"
+  },
+  {
+    "cohort": "US-Native",
+    "voice_id": "XfNU2rGpBa01ckF309OY",
+    "name": "Nichalia Schwartz - Friendly, Bright 20s-30s",
+    "gender": "female",
+    "wav_path": "benchmarks/US-Native/US-Native_10_NichaliaSchw_female.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_01_FrankJapanes_male.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "4UeMMcJzBVRXxesigZKz",
+    "name": "Believe - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_02_BelieveCalmJ_male.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "XqU2UWV8Vx1jxIkWGuhk",
+    "name": "Ryo - Calm & Gentle Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_03_RyoCalmGentl_male.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "39Vd88odsfMFSYn3pQ7i",
+    "name": "Makoto-san - Warm, Friendly AI Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_04_MakotosanWar_male.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "qtZU80V9mb7jMTtOMfcs",
+    "name": "Aiko - Bright Japanese Narrator",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_05_AikoBrightJa_female.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "vTVmhKfrm9mZeTBzRTvR",
+    "name": "Mika - Clear, Bright & Engaging Japanese",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_06_MikaClearBri_female.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "P85Ck7s3ztttEfam556O",
+    "name": "Hana - Japanese, Bright & Professional",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_07_HanaJapanese_female.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "dx81v2cGW5VIGRXDTLfY",
+    "name": "Sakura - Gentle & Natural",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_08_SakuraGentle_male.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "Xe358ecHiAMPqKeziEUB",
+    "name": "Aaa - Native Japanese Conversation",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_09_AaaNativeJap_female.wav"
+  },
+  {
+    "cohort": "JP-Accented",
+    "voice_id": "3fjRiFR1qpMZpeqXtmwX",
+    "name": "Soya - Clear& Bright",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Accented/JP-Accented_10_SoyaClearBri_female.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qiDSZKWPD8GcI15QYpQw",
+    "name": "Frank - Japanese ",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_01_FrankJapanes_male.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "4UeMMcJzBVRXxesigZKz",
+    "name": "Believe - Calm Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_02_BelieveCalmJ_male.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "XqU2UWV8Vx1jxIkWGuhk",
+    "name": "Ryo - Calm & Gentle Japanese Male",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_03_RyoCalmGentl_male.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "39Vd88odsfMFSYn3pQ7i",
+    "name": "Makoto-san - Warm, Friendly AI Assistant",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_04_MakotosanWar_male.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "qtZU80V9mb7jMTtOMfcs",
+    "name": "Aiko - Bright Japanese Narrator",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_05_AikoBrightJa_female.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "vTVmhKfrm9mZeTBzRTvR",
+    "name": "Mika - Clear, Bright & Engaging Japanese",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_06_MikaClearBri_female.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "P85Ck7s3ztttEfam556O",
+    "name": "Hana - Japanese, Bright & Professional",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_07_HanaJapanese_female.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "dx81v2cGW5VIGRXDTLfY",
+    "name": "Sakura - Gentle & Natural",
+    "gender": "male",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_08_SakuraGentle_male.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "Xe358ecHiAMPqKeziEUB",
+    "name": "Aaa - Native Japanese Conversation",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_09_AaaNativeJap_female.wav"
+  },
+  {
+    "cohort": "JP-Mora-Forced",
+    "voice_id": "3fjRiFR1qpMZpeqXtmwX",
+    "name": "Soya - Clear& Bright",
+    "gender": "female",
+    "wav_path": "benchmarks/JP-Mora-Forced/JP-Mora-Forced_10_SoyaClearBri_female.wav"
+  }
+]

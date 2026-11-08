@@ -9,23 +9,35 @@ import io
 import os
 import re
 
+# MMS_FA アライメントエンジンのインポート（E2用）
+try:
+    from test_rhythm_align import align_word_characters, map_words_to_phonemes
+    from evaluate_benchmarks import compute_robust_metrics
+    ALIGNMENT_AVAILABLE = True
+except ImportError:
+    ALIGNMENT_AVAILABLE = False
+
 st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide", initial_sidebar_state="collapsed")
 
 # 画面パディングとスタイル調整
 st.markdown("""
 <style>
+    header[data-testid="stHeader"] {
+        height: 2.5rem !important;
+        background: transparent !important;
+    }
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 3.2rem !important;
         padding-bottom: 0.5rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
     }
     h1 {
-        font-size: 1.5rem !important;
+        font-size: 1.45rem !important;
         font-weight: 700 !important;
-        margin-bottom: 0.4rem !important;
+        margin: 0 !important;
         color: #F8FAFC !important;
-        line-height: 1.2 !important;
+        line-height: 2.2rem !important;
     }
     div[data-testid="stAudioInput"] {
         background: #1E293B;
@@ -51,7 +63,6 @@ st.markdown("""
         border-color: #64748B !important;
         color: #FFFFFF !important;
     }
-    /* モード切替用アクティブボタン強調 */
     div[data-testid="column"] .stButton button[kind="primary"] {
         background-color: #2563EB !important;
         border-color: #3B82F6 !important;
@@ -71,11 +82,17 @@ if "last_recorded_bytes" not in st.session_state:
     st.session_state.last_recorded_bytes = None
 if "auto_play" not in st.session_state:
     st.session_state.auto_play = False
-if "rhythm_audio_bytes" not in st.session_state:
-    st.session_state.rhythm_audio_bytes = None
+
+# E2 セッション状態
+if "e2_selected_passage" not in st.session_state:
+    st.session_state.e2_selected_passage = "S1_stress"
+if "e2_audio_bytes" not in st.session_state:
+    st.session_state.e2_audio_bytes = None
+if "e2_eval_history" not in st.session_state:
+    st.session_state.e2_eval_history = []  # 同一タスク中の履歴を保持するリスト
 
 # --- ヘッダー & 最上段モード切替ボタン ---
-head_col1, head_col2, head_col3 = st.columns([2.2, 1.2, 1.2])
+head_col1, head_col2, head_col3 = st.columns([2.0, 1.2, 1.2], vertical_alignment="center")
 with head_col1:
     st.title("NinjaPhonetics: Biofeedback Scope")
 with head_col2:
@@ -88,7 +105,7 @@ with head_col2:
         st.rerun()
 with head_col3:
     if st.button(
-        "E2: 強弱リズム・母音長比",
+        "E2: 3大プロソディ診断",
         type="primary" if st.session_state.app_mode == "RHYTHM" else "secondary",
         use_container_width=True
     ):
@@ -117,95 +134,31 @@ def decode_audio_bytes(audio_bytes: bytes):
 
 
 # =====================================================================
-# MODE 1: R / L ホルマントスコープ (既存完成版)
+# MODE 1: R / L ホルマントスコープ (既存機能)
 # =====================================================================
 PRESET_DIR = "presets"
 PRESETS = [
-    {
-        "label": "Right (US)",
-        "file": "right_us.wav",
-        "title": "Right /raɪt/ (US)",
-        "phonetics": "/r/ のくびれ (谷)",
-        "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。舌の両側面を上顎の奥歯に密着させることでこの深い谷が生まれます。"
-    },
-    {
-        "label": "Right (UK)",
-        "file": "right_uk.wav",
-        "title": "Right /raɪt/ (UK)",
-        "phonetics": "/r/ の狭窄",
-        "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。その後の二重母音 /aɪ/ への移行部でF2が右肩上がりに上昇します。"
-    },
-    {
-        "label": "Light (US)",
-        "file": "light_us.wav",
-        "title": "Light /laɪt/ (US)",
-        "phonetics": "Dark L（軟口蓋化）による低F2・高Δ",
-        "desc": "米語の語頭 /l/ は奥舌が引かれるため（Dark L傾向）、開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に大きく開くのが特徴です。"
-    },
-    {
-        "label": "Light (UK)",
-        "file": "light_uk.wav",
-        "title": "Light /laɪt/ (UK)",
-        "phonetics": "F3高域維持 (Clear L)",
-        "desc": "語頭の /l/ でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"
-    },
-    {
-        "label": "White (UK)",
-        "file": "white_uk.wav",
-        "title": "White /waɪt/ (UK)",
-        "phonetics": "円唇によるF2低下",
-        "desc": "語頭で唇を丸めるためF2が一時的に下がりますが、F3は下がらないため、差分ラインはRのようなくびれになりません。"
-    },
-    {
-        "label": "ライト (JP)",
-        "file": "raito_jp.wav",
-        "title": "日本語「ライト」/ɾaɪto/",
-        "phonetics": "タップ破裂と語尾母音付加",
-        "desc": "「ラ」で瞬間的な弾き音（破裂）が起き、語尾には英語の /t/ にはない母音「オ」のホルマントが明瞭に残ります。"
-    },
-    {
-        "label": "Really (US)",
-        "file": "really_us.wav",
-        "title": "Really /ˈrɪli/ ~ /ˈriːli/ (US)",
-        "phonetics": "/r/ の深谷から /l/ の天井へのジャンプ",
-        "desc": "語頭の /r/ で青（F3）が緑（F2）へ沈み込み、黄色（Δ）が 500Hz 前後まで深く潜ります。そこから後半の /l/ に向かって F3 が 3000Hz 超へ跳ね上がるコントラストが特徴です。"
-    },
-    {
-        "label": "Really (UK)",
-        "file": "really_uk.wav",
-        "title": "Really /ˈrɪəli/ (UK)",
-        "phonetics": "センタリング二重母音を経由する滑らかな渡り",
-        "desc": "前半の /r/ でしっかり 1000Hz 破線を潜る谷を作った後、イギリス英語特有の曖昧母音 /ə/ を挟みながら、後半の /l/ に向かって滑らかに F3 が立ち上がります。"
-    },
-    {
-        "label": "Very (US)",
-        "file": "very_us.wav",
-        "title": "Very /ˈveri/ (US)",
-        "phonetics": "有声摩擦 /v/ の振動持続 ＋ r-colored母音のくびれ",
-        "desc": "語頭は有声摩擦 /v/ の規則的な声帯振動が続き、破裂音（b）のようなスパイクがありません。続く母音〜/r/ で F3 が引きずり下ろされ、Δ が 500Hz 未満の深い谷を作ります。"
-    },
-    {
-        "label": "Very (UK)",
-        "file": "very_uk.wav",
-        "title": "Very /ˈveri/ (UK)",
-        "phonetics": "/v/ から短母音を経て短く鋭い /r/ へ",
-        "desc": "前半の摩擦音から母音 /e/ を経て、F3 が鋭く落ち込みます。米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっています。"
-    }
+    {"label": "Right (US)", "file": "right_us.wav", "title": "Right /raɪt/ (US)", "phonetics": "/r/ のくびれ (谷)", "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。"},
+    {"label": "Right (UK)", "file": "right_uk.wav", "title": "Right /raɪt/ (UK)", "phonetics": "/r/ の狭窄", "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。二重母音 /aɪ/ への移行部でF2が上昇します。"},
+    {"label": "Light (US)", "file": "light_us.wav", "title": "Light /laɪt/ (US)", "phonetics": "Dark L（軟口蓋化）", "desc": "開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に開きます。"},
+    {"label": "Light (UK)", "file": "light_uk.wav", "title": "Light /laɪt/ (UK)", "phonetics": "Clear L", "desc": "語頭の /l/ でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"},
+    {"label": "White (UK)", "file": "white_uk.wav", "title": "White /waɪt/ (UK)", "phonetics": "円唇によるF2低下", "desc": "語頭で唇を丸めるためF2が下がりますが、F3は下がらないため、差分ラインは谷になりません。"},
+    {"label": "ライト (JP)", "file": "raito_jp.wav", "title": "日本語「ライト」/ɾaɪto/", "phonetics": "タップ破裂と語尾母音付加", "desc": "「ラ」で瞬間的な弾き音が起き、語尾には英語の /t/ にはない母音「オ」が明瞭に残ります。"},
+    {"label": "Really (US)", "file": "really_us.wav", "title": "Really (US)", "phonetics": "/r/ の深谷から /l/ へのジャンプ", "desc": "語頭 /r/ で青（F3）が緑（F2）へ沈み、後半の /l/ に向かって F3 が 3000Hz 超へ跳ね上がります。"},
+    {"label": "Really (UK)", "file": "really_uk.wav", "title": "Really (UK)", "phonetics": "センタリング二重母音の渡り", "desc": "前半の /r/ で谷を作った後、イギリス英語特有の曖昧母音 /ə/ を挟みながら滑らかに立ち上がります。"},
+    {"label": "Very (US)", "file": "very_us.wav", "title": "Very (US)", "phonetics": "有声摩擦 /v/ ＋ r-colored母音", "desc": "有声摩擦 /v/ の振動が続き、続く母音〜/r/ で F3 が引きずり下ろされ、Δ が 500Hz 未満になります。"},
+    {"label": "Very (UK)", "file": "very_uk.wav", "title": "Very (UK)", "phonetics": "/v/ から短母音を経て鋭い /r/ へ", "desc": "米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっています。"}
 ]
-
 
 def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 5000.0):
     audio_data, sample_rate = decode_audio_bytes(audio_bytes)
-
     snd = parselmouth.Sound(audio_data.astype(np.float64), sampling_frequency=float(sample_rate))
     pitch = snd.to_pitch()
     formant = snd.to_formant_burg(time_step=0.005, max_number_of_formants=5.0, maximum_formant=max_formant_hz)
     intensity = snd.to_intensity()
 
     times = formant.xs()
-    f2_list, f3_list, delta_list = [], [], []
-    valid_times = []
-
+    f2_list, f3_list, delta_list, valid_times = [], [], [], []
     max_int = np.max(intensity.values) if len(intensity.values) > 0 else 0
     threshold_int = max(25.0, max_int - 35.0)
 
@@ -225,26 +178,17 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
         else:
             f2_list.append(None); f3_list.append(None); delta_list.append(None)
 
-    if valid_times:
-        x_min = max(0.0, float(min(valid_times)) - 0.08)
-        x_max = min(float(snd.duration), float(max(valid_times)) + 0.25)
-    else:
-        x_min, x_max = 0.0, float(snd.duration)
+    x_min = max(0.0, float(min(valid_times)) - 0.08) if valid_times else 0.0
+    x_max = min(float(snd.duration), float(max(valid_times)) + 0.25) if valid_times else float(snd.duration)
 
     spec = snd.to_spectrogram(window_length=0.005, maximum_frequency=4200.0, time_step=0.003, frequency_step=25.0)
     spec_vals = 10.0 * np.log10(np.maximum(spec.values, 1e-12))
-    spec_t = spec.xs()
-    spec_f = spec.ys()
-
-    t_mask = (spec_t >= x_min) & (spec_t <= x_max)
-    f_mask = (spec_f >= 500.0) & (spec_f <= 4000.0)
+    t_mask = (spec.xs() >= x_min) & (spec.xs() <= x_max)
+    f_mask = (spec.ys() >= 500.0) & (spec.ys() <= 4000.0)
 
     if np.any(t_mask) and np.any(f_mask):
-        sub_spec = spec_vals[np.ix_(f_mask, t_mask)]
-        sub_spec = np.flipud(sub_spec)
-        max_db = np.max(sub_spec)
-        dynamic_range = 45.0
-        norm_spec = np.clip((sub_spec - (max_db - dynamic_range)) / dynamic_range, 0.0, 1.0)
+        sub_spec = np.flipud(spec_vals[np.ix_(f_mask, t_mask)])
+        norm_spec = np.clip((sub_spec - (np.max(sub_spec) - 45.0)) / 45.0, 0.0, 1.0)
         spec_u8 = (norm_spec * 255).astype(np.uint8)
         spec_h, spec_w = spec_u8.shape
         spec_b64 = base64.b64encode(spec_u8.tobytes()).decode("utf-8")
@@ -252,9 +196,8 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
         spec_h, spec_w, spec_b64 = 0, 0, ""
 
     raw_samples = snd.values[0]
-    raw_times = np.linspace(0, snd.duration, len(raw_samples))
     step = max(1, len(raw_samples) // 3000)
-    wave_t = np.round(raw_times[::step], 4).tolist()
+    wave_t = np.round(np.linspace(0, snd.duration, len(raw_samples))[::step], 4).tolist()
     wave_y = np.round(raw_samples[::step], 4).tolist()
 
     wav_io = io.BytesIO()
@@ -263,18 +206,11 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
 
     return {
         "duration": float(snd.duration),
-        "x_min": round(x_min, 3),
-        "x_max": round(x_max, 3),
+        "x_min": round(x_min, 3), "x_max": round(x_max, 3),
         "times": np.round(times, 4).tolist(),
-        "f2": f2_list,
-        "f3": f3_list,
-        "delta": delta_list,
-        "wave_t": wave_t,
-        "wave_y": wave_y,
-        "wav_b64": wav_b64,
-        "spec_w": spec_w,
-        "spec_h": spec_h,
-        "spec_b64": spec_b64
+        "f2": f2_list, "f3": f3_list, "delta": delta_list,
+        "wave_t": wave_t, "wave_y": wave_y, "wav_b64": wav_b64,
+        "spec_w": spec_w, "spec_h": spec_h, "spec_b64": spec_b64
     }
 
 
@@ -534,7 +470,7 @@ function drawBackground() {{
     bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
-  // R Strike Zone Patch (<1000Hz)
+  // R Strike Zone (<1000Hz)
   const yTarget = valToY(1000, dMin, dMax, p3);
   const yZero = valToY(0, dMin, dMax, p3);
   bgCtx.save();
@@ -692,7 +628,9 @@ window.addEventListener("mouseup", () => {{
 }});
 window.addEventListener("resize", () => {{ drawBackground(); drawOverlay(); }});
 drawBackground(); drawOverlay();
-if (D.auto_play) setTimeout(() => {{ cursorT = xMin; startPlayback(); }}, 1000);
+
+// 見本音声選択時の自動再生
+if (D.auto_play) setTimeout(() => {{ cursorT = xMin; startPlayback(); }}, 600);
 </script>
 </body>
 </html>
@@ -700,442 +638,319 @@ if (D.auto_play) setTimeout(() => {{ cursorT = xMin; startPlayback(); }}, 1000);
 
 
 # =====================================================================
-# MODE 2: E2 強弱リズム・母音長比プロトタイプ
+# MODE 2: E2 3大プロソディ診断 (実測ベンチマーク駆動)
 # =====================================================================
-def extract_rhythm_data_from_bytes(audio_bytes: bytes):
-    audio_data, sample_rate = decode_audio_bytes(audio_bytes)
-    snd = parselmouth.Sound(audio_data.astype(np.float64), sampling_frequency=float(sample_rate))
-    intensity = snd.to_intensity(minimum_pitch=75.0, time_step=0.005)
-    pitch = snd.to_pitch(time_step=0.005)
+E2_PASSAGE_BENCHMARKS = {
+    "S1_stress": {
+        "title": "課題 1: Alternating Stress & Reduction (語彙強弱拍)",
+        "target_text": "A photograph of a famous photographer was taken in the station.",
+        "phonetics_desc": "photograph /ˈfoʊ.tə.ɡræf/ と photographer /fəˈtɑː.ɡrə.fɚ/ の強弱母音コントラストを測定。弱母音(/ə/)の鋭い短縮が不可欠です。",
+        "mu": np.array([47.01, 58.61]),
+        "cov": np.array([[1.045, 3.120], [3.120, 39.810]]),
+        "x_range": (42.0, 58.0),
+        "y_range": (35.0, 110.0),
+        "ref_audio": "benchmarks/S1_stress/UK-Native/UK-Native_01_GeorgeWarmCa_male.wav"
+    },
+    "S2_clusters": {
+        "title": "課題 2: Consonant Clusters & Coda Holding (子音連結保持)",
+        "target_text": "Strict instructors asked complex questions about the project tests.",
+        "phonetics_desc": "/str/, /mpl/, /sts/ などの連続子音に余計な母音([ɯ], [o])を挟まずに子音を保持できるかを診断。ネイティブは %V が 36% 付近まで急激に低下します。",
+        "mu": np.array([35.85, 59.12]),
+        "cov": np.array([[1.380, 2.850], [2.850, 48.200]]),
+        "x_range": (30.0, 46.0),
+        "y_range": (35.0, 120.0),
+        "ref_audio": "benchmarks/S2_clusters/US-Native/US-Native_01_RogerLaidBac_male.wav"
+    },
+    "S3_connected": {
+        "title": "課題 3: Connected Speech & Function Word Weakening (機能語弱化)",
+        "target_text": "Can you give him a cup of water from the kitchen at lunch?",
+        "phonetics_desc": "can, him, a, of, from, at などの機能語を極小化し、息の流れに乗せるテスト。全単語を等時拍で読むと Schwa P75 が 80ms を突破します。",
+        "mu": np.array([45.42, 45.18]),
+        "cov": np.array([[1.150, 1.950], [1.950, 36.400]]),
+        "x_range": (38.0, 54.0),
+        "y_range": (30.0, 140.0),
+        "ref_audio": "benchmarks/S3_connected/UK-Native/UK-Native_02_AliceClearEn_female.wav"
+    }
+}
 
-    int_times = intensity.xs()
-    int_vals = intensity.values[0] if len(intensity.values) > 0 else np.array([])
 
-    max_int = float(np.max(int_vals)) if len(int_vals) > 0 else 70.0
-    min_int = max(30.0, max_int - 40.0)
+def evaluate_user_rhythm(audio_path: str, passage_key: str):
+    """MMS_FAでアライメントし、マハラノビス距離と幾何学的判定を算出"""
+    if not ALIGNMENT_AVAILABLE:
+        return {"error": "アライメントモジュールがロードできませんでした。"}
 
-    # 有声かつ一定音圧以上のフレームから音節チャンクを自動推定
-    active_mask = np.zeros(len(int_times), dtype=bool)
-    for i, t in enumerate(int_times):
-        f0 = pitch.get_value_at_time(t)
-        if not np.isnan(f0) and f0 > 0 and int_vals[i] >= max_int - 22.0:
-            active_mask[i] = True
+    bm = E2_PASSAGE_BENCHMARKS[passage_key]
+    ref_text = bm["target_text"]
 
-    segments = []
-    in_seg = False
-    seg_start = 0.0
-    for i, active in enumerate(active_mask):
-        t = float(int_times[i])
-        if active and not in_seg:
-            in_seg = True
-            seg_start = t
-        elif not active and in_seg:
-            in_seg = False
-            if t - seg_start >= 0.025:
-                seg_slice = int_vals[(int_times >= seg_start) & (int_times <= t)]
-                peak_db = float(np.max(seg_slice)) if len(seg_slice) > 0 else 0.0
-                segments.append({"start": round(seg_start, 3), "end": round(t, 3), "peak_db": round(peak_db, 1)})
-    if in_seg:
-        t = float(int_times[-1])
-        if t - seg_start >= 0.025:
-            seg_slice = int_vals[(int_times >= seg_start) & (int_times <= t)]
-            peak_db = float(np.max(seg_slice)) if len(seg_slice) > 0 else 0.0
-            segments.append({"start": round(seg_start, 3), "end": round(t, 3), "peak_db": round(peak_db, 1)})
+    w_aligns = align_word_characters(audio_path, ref_text)
+    phones = map_words_to_phonemes(w_aligns)
+    metrics = compute_robust_metrics(phones)
 
-    # 全体表示範囲
-    if segments:
-        x_min = max(0.0, segments[0]["start"] - 0.12)
-        x_max = min(float(snd.duration), segments[-1]["end"] + 0.18)
+    user_pt = np.array([metrics["pct_v"], metrics["schwa_p75_ms"]])
+    mu = bm["mu"]
+    cov = bm["cov"]
+    inv_cov = np.linalg.inv(cov)
+
+    diff = user_pt - mu
+    d_m_sq = float(diff.T @ inv_cov @ diff)
+
+    is_strike = d_m_sq <= 5.991
+    is_bullseye = d_m_sq <= (5.991 / 20.0)
+
+    if is_bullseye:
+        verdict = "PERFECT STRIKE"
+        status_color = "#38BDF8"
+        feedback = "ネイティブ母集団の平均重心（95% CI）に完全に一致しています。ストレス拍と母音圧縮が理想的です。"
+    elif is_strike:
+        verdict = "NATIVE STRIKE"
+        status_color = "#10B981"
+        feedback = "95% ネイティブ許容ゾーンに合格しています。自然な英語プロソディのリズム骨格が形成されています。"
     else:
-        x_min, x_max = 0.0, float(snd.duration)
+        status_color = "#EF4444"
+        delta_v = metrics["pct_v"] - mu[0]
+        delta_u = metrics["schwa_p75_ms"] - mu[1]
 
-    # 自動初期選択: 最大エネルギーの区間を Stressed、2番目または隣接区間を Unstressed にセット
-    if len(segments) >= 2:
-        sorted_segs = sorted(segments, key=lambda s: (s["end"] - s["start"]) * s["peak_db"], reverse=True)
-        stressed_seg = sorted_segs[0]
-        unstressed_seg = sorted_segs[1]
-    elif len(segments) == 1:
-        s0 = segments[0]
-        mid = round((s0["start"] + s0["end"]) / 2, 3)
-        stressed_seg = {"start": s0["start"], "end": mid}
-        unstressed_seg = {"start": round(mid + 0.02, 3), "end": s0["end"]}
-    else:
-        dur = float(snd.duration)
-        stressed_seg = {"start": round(dur * 0.2, 3), "end": round(dur * 0.45, 3)}
-        unstressed_seg = {"start": round(dur * 0.55, 3), "end": round(dur * 0.65, 3)}
-
-    raw_samples = snd.values[0]
-    raw_times = np.linspace(0, snd.duration, len(raw_samples))
-    step = max(1, len(raw_samples) // 3000)
-    wave_t = np.round(raw_times[::step], 4).tolist()
-    wave_y = np.round(raw_samples[::step], 4).tolist()
-
-    wav_io = io.BytesIO()
-    sf.write(wav_io, audio_data, sample_rate, format='WAV')
-    wav_b64 = base64.b64encode(wav_io.getvalue()).decode("utf-8")
+        if delta_u > 15.0 and delta_v > 3.0:
+            verdict = "MORA TRAP (等時拍)"
+            feedback = "弱母音を短縮できず引き伸ばし、さらに不要な母音が多く入り込んでいます。機能語や弱拍を30〜40msで素早く脱落させてください。"
+        elif delta_v > 4.0:
+            verdict = "VOWEL HEAVY (不要母音)"
+            feedback = f"母音占有率(%V)が基準値より +{delta_v:.1f}% 高すぎます。子音部（子音連続や語尾閉鎖）に日本語の「ウ」「オ」が挿入されていないか確認してください。"
+        elif delta_u > 15.0:
+            verdict = "WEAK VOWEL TOO LONG"
+            feedback = f"弱母音(Schwa)の持続時間が上限を大きく超えています (+{delta_u:.1f}ms)。強勢のない音節をもっと喉の奥で脱落気味に弱く発音してください。"
+        else:
+            verdict = "OFF TARGET"
+            feedback = "ネイティブのストライクゾーンから外れています。リズムの強弱コントラストを意識してください。"
 
     return {
-        "duration": float(snd.duration),
-        "x_min": round(x_min, 3),
-        "x_max": round(x_max, 3),
-        "int_t": np.round(int_times, 4).tolist(),
-        "int_y": np.round(int_vals, 1).tolist(),
-        "max_int": round(max_int, 1),
-        "min_int": round(min_int, 1),
-        "stressed": stressed_seg,
-        "unstressed": unstressed_seg,
-        "wave_t": wave_t,
-        "wave_y": wave_y,
-        "wav_b64": wav_b64
+        "pct_v": metrics["pct_v"],
+        "schwa_p75_ms": metrics["schwa_p75_ms"],
+        "npvi_clipped": metrics["npvi_clipped"],
+        "d_m_sq": round(d_m_sq, 2),
+        "is_strike": is_strike,
+        "is_bullseye": is_bullseye,
+        "verdict": verdict,
+        "status_color": status_color,
+        "feedback": feedback
     }
 
 
-def build_rhythm_html(data: dict) -> str:
-    data_json = json.dumps(data)
+def build_e2_radar_html(passage_key: str, eval_history: list = None) -> str:
+    """Canvas上に選択された課題文の95% Strike Zone楕円とユーザーの試行履歴（フェード点群）を描画"""
+    bm = E2_PASSAGE_BENCHMARKS[passage_key]
+    mu = bm["mu"]
+    cov = bm["cov"]
+
+    vals, vecs = np.linalg.eigh(cov)
+    order = vals.argsort()[::-1]
+    vals, vecs = vals[order], vecs[:, order]
+    
+    n_std_95 = 2.447
+    v1_95 = vecs[:, 0] * (n_std_95 * np.sqrt(max(vals[0], 0)))
+    v2_95 = vecs[:, 1] * (n_std_95 * np.sqrt(max(vals[1], 0)))
+
+    n_std_ci = 2.447 / np.sqrt(20)
+    v1_ci = vecs[:, 0] * (n_std_ci * np.sqrt(max(vals[0], 0)))
+    v2_ci = vecs[:, 1] * (n_std_ci * np.sqrt(max(vals[1], 0)))
+
+    history_list = eval_history if eval_history is not None else []
+
+    canvas_data = {
+        "passage_key": passage_key,
+        "mu_x": float(mu[0]),
+        "mu_y": float(mu[1]),
+        "v1_95": [float(v1_95[0]), float(v1_95[1])],
+        "v2_95": [float(v2_95[0]), float(v2_95[1])],
+        "v1_ci": [float(v1_ci[0]), float(v1_ci[1])],
+        "v2_ci": [float(v2_ci[0]), float(v2_ci[1])],
+        "x_min": bm["x_range"][0],
+        "x_max": bm["x_range"][1],
+        "y_min": bm["y_range"][0],
+        "y_max": bm["y_range"][1],
+        "history": history_list
+    }
+
     return f"""
 <!DOCTYPE html>
 <html>
 <head>
 <style>
-  body {{
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #0B0F19; color: #E2E8F0;
-    user-select: none; overflow: hidden;
-  }}
-  .toolbar {{
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; background: #0F172A;
-    border: 1px solid #1E293B; border-radius: 8px 8px 0 0;
-  }}
-  button {{
-    font-family: inherit; font-size: 13px; font-weight: bold;
-    padding: 8px 12px; border-radius: 6px;
-    border: 1px solid #334155; cursor: pointer;
-    background: #1E293B; color: #E2E8F0;
-    transition: all 0.15s; white-space: nowrap;
-  }}
+  body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
+  .toolbar {{ display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
+  .toolbar-title {{ font-size: 13px; font-weight: 600; color: #94A3B8; }}
+  button {{ font-family: inherit; font-size: 12px; font-weight: bold; padding: 5px 12px; border-radius: 6px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; }}
   button:hover {{ background: #334155; color: #FFFFFF; }}
-  button.btn-play-ready {{ background: #16A34A; color: #FFFFFF; border-color: #15803D; }}
-  button.btn-play-active {{ background: #DC2626; color: #FFFFFF; border-color: #B91C1C; }}
-  button.mode-stressed {{ background: rgba(245, 158, 11, 0.25); color: #FBBF24; border-color: #F59E0B; }}
-  button.mode-unstressed {{ background: rgba(56, 189, 248, 0.25); color: #38BDF8; border-color: #0284C7; }}
-  select {{
-    font-family: inherit; font-size: 13px; padding: 6px 8px;
-    border-radius: 6px; border: 1px solid #334155;
-    background: #1E293B; color: #E2E8F0; font-weight: bold;
-  }}
-  .readout {{
-    font-family: inherit; font-size: 15px; font-weight: 700; margin-left: auto;
-    font-variant-numeric: tabular-nums; color: #F8FAFC; white-space: nowrap;
-  }}
-  #scope-wrapper {{
-    position: relative; width: 100%; height: 560px;
-    border: 1px solid #1E293B; border-top: none; background: #090D16;
-  }}
+  #scope-wrapper {{ position: relative; width: 100%; height: 400px; background: #090D16; border: 1px solid #1E293B; border-top: none; border-radius: 0 0 8px 8px; }}
   canvas {{ position: absolute; left: 0; top: 0; width: 100%; height: 100%; }}
 </style>
 </head>
 <body>
 <div class="toolbar">
-  <button id="btn-play" class="btn-play-ready">▶ Play (Space)</button>
-  <span style="color:#64748B; font-size:13px;">区間ドラッグ修正:</span>
-  <button id="btn-drag-s" class="mode-stressed">🟧 Drag: Stressed (強母音)</button>
-  <button id="btn-drag-u">🟦 Drag: Unstressed (弱母音)</button>
-  <label style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px; color: #94A3B8;">
-    Speed:
-    <select id="sel-rate">
-      <option value="1.0">1.0x</option>
-      <option value="0.7">0.7x</option>
-      <option value="0.5">0.5x</option>
-    </select>
-  </label>
-  <div class="readout" id="ratio-readout">Ratio: --</div>
+  <div class="toolbar-title">🎯 2D Strike Zone Radar (Trials: {len(history_list)})</div>
+  <button id="btn-dl-radar">💾 Radar (.png)</button>
 </div>
 <div id="scope-wrapper">
-  <canvas id="bg-canvas"></canvas>
-  <canvas id="overlay-canvas"></canvas>
+  <canvas id="radar-canvas"></canvas>
 </div>
 <script>
-const D = {data_json};
+const D = {json.dumps(canvas_data)};
+const canvas = document.getElementById('radar-canvas');
+const ctx = canvas.getContext('2d');
 const wrapper = document.getElementById('scope-wrapper');
-const bgCanvas = document.getElementById('bg-canvas');
-const ovCanvas = document.getElementById('overlay-canvas');
-const bgCtx = bgCanvas.getContext('2d');
-const ovCtx = ovCanvas.getContext('2d');
+const btnDl = document.getElementById('btn-dl-radar');
 
-const btnPlay = document.getElementById('btn-play');
-const btnDragS = document.getElementById('btn-drag-s');
-const btnDragU = document.getElementById('btn-drag-u');
-const selRate = document.getElementById('sel-rate');
-const readout = document.getElementById('ratio-readout');
+const MARGIN = {{ left: 80, right: 30, top: 20, bottom: 45 }};
+let W = 800, H = 400;
 
-const MARGIN = {{ left: 110, right: 30, top: 20, bottom: 45 }};
-let W = 1000, H = 560;
-let xMin = D.x_min, xMax = D.x_max;
+function xToPx(x) {{ return MARGIN.left + ((x - D.x_min) / (D.x_max - D.x_min)) * (W - MARGIN.left - MARGIN.right); }}
+function yToPx(y) {{ return (H - MARGIN.bottom) - ((y - D.y_min) / (D.y_max - D.y_min)) * (H - MARGIN.top - MARGIN.bottom); }}
 
-let sSpan = {{ start: D.stressed.start, end: D.stressed.end }};
-let uSpan = {{ start: D.unstressed.start, end: D.unstressed.end }};
-let editTarget = "stressed"; // "stressed" or "unstressed"
-let cursorT = xMin;
-
-let audioEl = new Audio();
-let isPlaying = false;
-let animId = null;
-
-function initAudio() {{
-  const binary = atob(D.wav_b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const blob = new Blob([bytes], {{ type: "audio/wav" }});
-  audioEl.src = URL.createObjectURL(blob);
-  audioEl.preservesPitch = true;
-  audioEl.mozPreservesPitch = true;
-  audioEl.webkitPreservesPitch = true;
-}}
-initAudio();
-
-btnDragS.addEventListener("click", () => {{
-  editTarget = "stressed";
-  btnDragS.className = "mode-stressed";
-  btnDragU.className = "";
-}});
-btnDragU.addEventListener("click", () => {{
-  editTarget = "unstressed";
-  btnDragU.className = "mode-unstressed";
-  btnDragS.className = "";
-}});
-
-function tToX(t) {{
-  const plotW = W - MARGIN.left - MARGIN.right;
-  return MARGIN.left + ((t - xMin) / (xMax - xMin)) * plotW;
-}}
-function xToT(x) {{
-  const plotW = W - MARGIN.left - MARGIN.right;
-  const t = xMin + ((x - MARGIN.left) / plotW) * (xMax - xMin);
-  return Math.max(xMin, Math.min(xMax, t));
-}}
-function getPanels() {{
-  const totalH = H - MARGIN.top - MARGIN.bottom;
-  const gap = 24;
-  const h1 = 150, h2 = 160, h3 = totalH - h1 - h2 - (gap * 2);
-  const y1 = MARGIN.top, y2 = y1 + h1 + gap, y3 = y2 + h2 + gap;
-  return [
-    {{ top: y1, bottom: y1 + h1, height: h1 }},
-    {{ top: y2, bottom: y2 + h2, height: h2 }},
-    {{ top: y3, bottom: y3 + h3, height: h3 }}
-  ];
-}}
-function valToY(val, vMin, vMax, panel) {{
-  return panel.bottom - ((val - vMin) / (vMax - vMin)) * panel.height;
+function createEllipsePath(ctx, mu_x, mu_y, v1, v2) {{
+  ctx.beginPath();
+  const N_PTS = 64;
+  for (let i = 0; i <= N_PTS; i++) {{
+    const theta = (i / N_PTS) * 2 * Math.PI;
+    const cosT = Math.cos(theta);
+    const sinT = Math.sin(theta);
+    const dataX = mu_x + cosT * v1[0] + sinT * v2[0];
+    const dataY = mu_y + cosT * v1[1] + sinT * v2[1];
+    const px = xToPx(dataX);
+    const py = yToPx(dataY);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }}
+  ctx.closePath();
 }}
 
-function drawAll() {{
+function draw() {{
   const dpr = window.devicePixelRatio || 1;
   W = wrapper.clientWidth; H = wrapper.clientHeight;
-  bgCanvas.width = W * dpr; bgCanvas.height = H * dpr;
-  ovCanvas.width = W * dpr; ovCanvas.height = H * dpr;
-  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  bgCtx.fillStyle = "#090D16"; bgCtx.fillRect(0, 0, W, H);
-  const panels = getPanels();
+  ctx.fillStyle = "#090D16"; ctx.fillRect(0, 0, W, H);
   const plotW = W - MARGIN.left - MARGIN.right;
-  const p1 = panels[0], p2 = panels[1], p3 = panels[2];
-  const APP_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  const plotH = H - MARGIN.top - MARGIN.bottom;
 
-  // グリッドと時間目盛り (p1, p2)
-  const durationSpan = xMax - xMin;
-  const stepT = durationSpan <= 0.6 ? 0.05 : (durationSpan <= 1.5 ? 0.1 : 0.2);
-  const firstTick = Math.ceil(xMin / stepT) * stepT;
-  bgCtx.font = "13px " + APP_FONT;
+  // グリッド線描画
+  ctx.strokeStyle = "rgba(148, 163, 184, 0.10)"; ctx.lineWidth = 1.0;
+  for (let x = Math.ceil(D.x_min / 2) * 2; x <= D.x_max; x += 2) {{
+    const px = xToPx(x);
+    ctx.beginPath(); ctx.moveTo(px, MARGIN.top); ctx.lineTo(px, H - MARGIN.bottom); ctx.stroke();
+    ctx.fillStyle = "#64748B"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(x + "%", px, H - MARGIN.bottom + 18);
+  }}
+  for (let y = Math.ceil(D.y_min / 10) * 10; y <= D.y_max; y += 10) {{
+    const py = yToPx(y);
+    ctx.beginPath(); ctx.moveTo(MARGIN.left, py); ctx.lineTo(W - MARGIN.right, py); ctx.stroke();
+    ctx.fillStyle = "#64748B"; ctx.font = "12px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillText(y + "ms", MARGIN.left - 8, py);
+  }}
 
-  [p1, p2].forEach((p) => {{
-    for (let t = firstTick; t <= xMax + 1e-6; t += stepT) {{
-      const x = tToX(t);
-      bgCtx.strokeStyle = "rgba(148, 163, 184, 0.14)"; bgCtx.lineWidth = 1.0;
-      bgCtx.beginPath(); bgCtx.moveTo(x, p.top); bgCtx.lineTo(x, p.bottom); bgCtx.stroke();
-      bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
-      bgCtx.beginPath(); bgCtx.moveTo(x, p.bottom); bgCtx.lineTo(x, p.bottom + 5); bgCtx.stroke();
-      bgCtx.fillStyle = "#94A3B8"; bgCtx.textAlign = "center"; bgCtx.textBaseline = "top";
-      bgCtx.fillText(t.toFixed(2), x, p.bottom + 6);
+  // プロットエリア枠線
+  ctx.strokeStyle = "#334155"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(MARGIN.left, MARGIN.top, plotW, plotH);
+
+  // 軸ラベル
+  ctx.fillStyle = "#94A3B8"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("Vowel Occupancy: %V (%)", MARGIN.left + plotW / 2, H - 6);
+  ctx.save(); ctx.translate(22, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText("Schwa P75 Duration (ms)", 0, 0); ctx.restore();
+
+  // 枠内クリッピング
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(MARGIN.left, MARGIN.top, plotW, plotH);
+  ctx.clip();
+
+  // 1. 95% Native Strike Zone
+  createEllipsePath(ctx, D.mu_x, D.mu_y, D.v1_95, D.v2_95);
+  ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
+  ctx.fill();
+  ctx.strokeStyle = "#10B981";
+  ctx.lineWidth = 2.0;
+  ctx.setLineDash([5, 4]);
+  ctx.stroke();
+
+  // 2. Centroid (95% CI)
+  createEllipsePath(ctx, D.mu_x, D.mu_y, D.v1_ci, D.v2_ci);
+  ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
+  ctx.fill();
+  ctx.strokeStyle = "#38BDF8";
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([]);
+  ctx.stroke();
+
+  // 3. 過去試行の蓄積描画（古いほど薄く、最新ほど濃く発光）
+  const total = D.history.length;
+  if (total > 0) {{
+    // 試行をつなぐ淡いトラッキングライン（学習の歩み）
+    if (total > 1) {{
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      for (let i = 0; i < total; i++) {{
+        const pt = D.history[i];
+        const px = xToPx(pt.pct_v);
+        const py = yToPx(pt.schwa_p75_ms);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }}
+      ctx.stroke();
+      ctx.setLineDash([]);
     }}
-  }});
 
-  // --- 第1段: 生波形 ---
-  const maxAmp = Math.max(...D.wave_y.map(Math.abs), 0.05);
-  bgCtx.save();
-  bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p1.top, plotW, p1.height); bgCtx.clip();
-  bgCtx.strokeStyle = "#94A3B8"; bgCtx.lineWidth = 1.5;
-  bgCtx.beginPath();
-  for (let i = 0; i < D.wave_t.length; i++) {{
-    const x = tToX(D.wave_t[i]);
-    const y = valToY(D.wave_y[i], -maxAmp * 1.1, maxAmp * 1.1, p1);
-    if (i === 0) bgCtx.moveTo(x, y); else bgCtx.lineTo(x, y);
-  }}
-  bgCtx.stroke(); bgCtx.restore();
+    D.history.forEach((pt, idx) => {{
+      const isLatest = (idx === total - 1);
+      const px = xToPx(pt.pct_v);
+      const py = yToPx(pt.schwa_p75_ms);
+      
+      // 不透明度グラデーション: 最古 0.25 〜 最新 1.0
+      const alpha = total === 1 ? 1.0 : 0.25 + (idx / (total - 1)) * 0.75;
 
-  // --- 第2段: Intensity (dB) ---
-  const iMin = D.min_int, iMax = D.max_int + 5;
-  bgCtx.save();
-  bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
-  bgCtx.strokeStyle = "#10B981"; bgCtx.lineWidth = 3.0;
-  bgCtx.beginPath();
-  for (let i = 0; i < D.int_t.length; i++) {{
-    const x = tToX(D.int_t[i]);
-    const y = valToY(D.int_y[i], iMin, iMax, p2);
-    if (i === 0) bgCtx.moveTo(x, y); else bgCtx.lineTo(x, y);
-  }}
-  bgCtx.stroke(); bgCtx.restore();
+      ctx.save();
+      ctx.globalAlpha = alpha;
 
-  // --- Stressed / Unstressed 選択区間のオーバーレイ (p1, p2) ---
-  const sDurMs = Math.max(1, Math.round(Math.abs(sSpan.end - sSpan.start) * 1000));
-  const uDurMs = Math.max(1, Math.round(Math.abs(uSpan.end - uSpan.start) * 1000));
-  const ratio = (sDurMs / uDurMs).toFixed(2);
+      if (isLatest) {{
+        // 最新試行: パルス外光 ＋ 強調ピン
+        ctx.fillStyle = pt.status_color + "44";
+        ctx.beginPath(); ctx.arc(px, py, 18, 0, 2 * Math.PI); ctx.fill();
 
-  function drawSpanBox(span, colorFill, colorStroke, labelText) {{
-    const sx = tToX(Math.min(span.start, span.end));
-    const ex = tToX(Math.max(span.start, span.end));
-    [p1, p2].forEach(p => {{
-      bgCtx.fillStyle = colorFill;
-      bgCtx.fillRect(sx, p.top, ex - sx, p.height);
-      bgCtx.strokeStyle = colorStroke; bgCtx.lineWidth = 2.0;
-      bgCtx.beginPath(); bgCtx.moveTo(sx, p.top); bgCtx.lineTo(sx, p.bottom); bgCtx.moveTo(ex, p.top); bgCtx.lineTo(ex, p.bottom); bgCtx.stroke();
+        ctx.fillStyle = pt.status_color;
+        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(px, py, 8, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = "#F8FAFC"; ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = px > W - 140 ? "right" : "left";
+        ctx.fillText(`#${{idx+1}} (最新): ${{pt.pct_v}}%, ${{pt.schwa_p75_ms}}ms`, px + (px > W - 140 ? -12 : 12), py - 8);
+      }} else {{
+        // 過去試行: 小さめのドット ＋ 試行番号
+        ctx.fillStyle = pt.status_color;
+        ctx.strokeStyle = "rgba(11, 15, 25, 0.8)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+
+        ctx.fillStyle = "#94A3B8"; ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`#${{idx+1}}`, px, py - 8);
+      }}
+      ctx.restore();
     }});
-    bgCtx.font = "bold 13px " + APP_FONT;
-    bgCtx.fillStyle = colorStroke; bgCtx.textAlign = "center"; bgCtx.textBaseline = "top";
-    bgCtx.fillText(labelText, (sx + ex) / 2, p1.top + 6);
   }}
 
-  drawSpanBox(sSpan, "rgba(245, 158, 11, 0.22)", "#F59E0B", `Stressed: ${{sDurMs}} ms`);
-  drawSpanBox(uSpan, "rgba(56, 189, 248, 0.22)", "#38BDF8", `Unstressed: ${{uDurMs}} ms`);
-
-  // --- 第3段: Duration Ratio ストライクゾーン横ゲージ (0.0x ~ 5.0x) ---
-  const rMax = 5.0;
-  function rToX(r) {{
-    return MARGIN.left + (Math.min(rMax, Math.max(0, r)) / rMax) * plotW;
-  }}
-
-  // MORA TRAP Zone (< 1.5x)
-  const xMora = rToX(1.5);
-  bgCtx.fillStyle = "rgba(239, 68, 68, 0.12)";
-  bgCtx.fillRect(MARGIN.left, p3.top, xMora - MARGIN.left, p3.height);
-  bgCtx.font = "bold 12px " + APP_FONT; bgCtx.fillStyle = "#EF4444"; bgCtx.textAlign = "left"; bgCtx.textBaseline = "top";
-  bgCtx.fillText("MORA TRAP (1:1 均等読み <1.5x)", MARGIN.left + 8, p3.top + 8);
-
-  // STRIKE ZONE (2.5x ~ 5.0x)
-  const xStrike = rToX(2.5);
-  bgCtx.fillStyle = "rgba(16, 185, 129, 0.14)";
-  bgCtx.fillRect(xStrike, p3.top, (W - MARGIN.right) - xStrike, p3.height);
-  bgCtx.strokeStyle = "#10B981"; bgCtx.lineWidth = 2.0; bgCtx.setLineDash([6, 4]);
-  bgCtx.beginPath(); bgCtx.moveTo(xStrike, p3.top); bgCtx.lineTo(xStrike, p3.bottom); bgCtx.stroke(); bgCtx.setLineDash([]);
-  bgCtx.fillStyle = "#10B981"; bgCtx.textAlign = "right";
-  bgCtx.fillText("STRESS-TIMED STRIKE ZONE (≥ 2.5 : 1)", W - MARGIN.right - 10, p3.top + 8);
-
-  // 現在の Ratio バー描画
-  const barY = p3.top + p3.height * 0.45;
-  const barH = p3.height * 0.35;
-  const curX = rToX(parseFloat(ratio));
-  bgCtx.fillStyle = parseFloat(ratio) >= 2.5 ? "#10B981" : (parseFloat(ratio) < 1.5 ? "#EF4444" : "#F59E0B");
-  bgCtx.fillRect(MARGIN.left, barY, Math.max(4, curX - MARGIN.left), barH);
-
-  // Ratio 目盛り (0x, 1x, 2x, 2.5x, 3x, 4x, 5x)
-  [0, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0].forEach(r => {{
-    const rx = rToX(r);
-    bgCtx.strokeStyle = "#475569"; bgCtx.lineWidth = 1.5;
-    bgCtx.beginPath(); bgCtx.moveTo(rx, p3.bottom); bgCtx.lineTo(rx, p3.bottom + 5); bgCtx.stroke();
-    bgCtx.fillStyle = "#94A3B8"; bgCtx.font = "13px " + APP_FONT; bgCtx.textAlign = "center"; bgCtx.textBaseline = "top";
-    bgCtx.fillText(r.toFixed(1) + " : 1", rx, p3.bottom + 6);
-  }});
-
-  panels.forEach(p => {{
-    bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 1.5;
-    bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, p.top); bgCtx.lineTo(MARGIN.left, p.bottom); bgCtx.lineTo(W - MARGIN.right, p.bottom); bgCtx.stroke();
-  }});
-
-  bgCtx.font = "bold 15px " + APP_FONT; bgCtx.fillStyle = "#CBD5E1";
-  drawRotatedLabel("Waveform", 28, (p1.top + p1.bottom) / 2);
-  drawRotatedLabel("Intensity (dB)", 28, (p2.top + p2.bottom) / 2);
-  drawRotatedLabel("Ratio Gauge", 28, (p3.top + p3.bottom) / 2);
-
-  let statusColor = parseFloat(ratio) >= 2.5 ? "#10B981" : (parseFloat(ratio) < 1.5 ? "#EF4444" : "#F59E0B");
-  let verdict = parseFloat(ratio) >= 2.5 ? "STRIKE (英語リズム)" : (parseFloat(ratio) < 1.5 ? "MORA (日本語等時拍)" : "惜しい (あと少し短縮)");
-  readout.innerHTML = `<span style="color:#F59E0B;">強 ${{sDurMs}}ms</span> / <span style="color:#38BDF8;">弱 ${{uDurMs}}ms</span> = <span style="color:${{statusColor}}; font-size:18px;">${{ratio}} : 1 (${{verdict}})</span>`;
-
-  drawCursorOverlay();
+  ctx.restore();
 }}
 
-function drawRotatedLabel(text, x, y) {{
-  bgCtx.save(); bgCtx.translate(x, y); bgCtx.rotate(-Math.PI / 2);
-  bgCtx.textAlign = "center"; bgCtx.textBaseline = "middle"; bgCtx.fillText(text, 0, 0); bgCtx.restore();
-}}
-
-function drawCursorOverlay() {{
-  ovCtx.clearRect(0, 0, W, H);
-  const panels = getPanels();
-  const cx = tToX(cursorT);
-  ovCtx.strokeStyle = "#EF4444"; ovCtx.lineWidth = 2.0;
-  ovCtx.beginPath(); ovCtx.moveTo(cx, panels[0].top); ovCtx.lineTo(cx, panels[1].bottom); ovCtx.stroke();
-}}
-
-function startPlayback() {{
-  if (!audioEl.src) return; stopPlayback();
-  audioEl.playbackRate = parseFloat(selRate.value);
-  audioEl.preservesPitch = true;
-  audioEl.currentTime = xMin;
-  isPlaying = true; btnPlay.textContent = "⏹ Stop (Space)"; btnPlay.className = "btn-play-active";
-  audioEl.play().catch(() => stopPlayback());
-
-  function tick() {{
-    if (!isPlaying) return;
-    cursorT = audioEl.currentTime;
-    if (cursorT >= xMax || audioEl.ended) {{
-      stopPlayback(); return;
-    }}
-    drawCursorOverlay(); animId = requestAnimationFrame(tick);
-  }}
-  animId = requestAnimationFrame(tick);
-}}
-function stopPlayback() {{
-  audioEl.pause(); if (animId) cancelAnimationFrame(animId);
-  isPlaying = false; btnPlay.textContent = "▶ Play (Space)"; btnPlay.className = "btn-play-ready";
-}}
-btnPlay.addEventListener("click", () => isPlaying ? stopPlayback() : startPlayback());
-
-let isDragging = false;
-ovCanvas.addEventListener("mousedown", (e) => {{
-  stopPlayback();
-  const rect = ovCanvas.getBoundingClientRect();
-  const clickT = xToT(e.clientX - rect.left);
-  isDragging = true;
-  if (editTarget === "stressed") {{ sSpan.start = clickT; sSpan.end = clickT + 0.01; }}
-  else {{ uSpan.start = clickT; uSpan.end = clickT + 0.01; }}
-  cursorT = clickT;
-  drawAll();
+btnDl.addEventListener("click", () => {{
+  const link = document.createElement("a");
+  link.download = `NinjaPhonetics_E2_${{D.passage_key}}_radar.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }});
-ovCanvas.addEventListener("mousemove", (e) => {{
-  if (!isDragging) return;
-  const rect = ovCanvas.getBoundingClientRect();
-  const curT = xToT(e.clientX - rect.left);
-  if (editTarget === "stressed") sSpan.end = curT;
-  else uSpan.end = curT;
-  cursorT = curT;
-  drawAll();
-}});
-window.addEventListener("mouseup", () => {{
-  if (isDragging) {{
-    isDragging = false;
-    if (editTarget === "stressed" && sSpan.end < sSpan.start) {{
-      const tmp = sSpan.start; sSpan.start = sSpan.end; sSpan.end = tmp;
-    }}
-    if (editTarget === "unstressed" && uSpan.end < uSpan.start) {{
-      const tmp = uSpan.start; uSpan.start = uSpan.end; uSpan.end = tmp;
-    }}
-    drawAll();
-  }}
-}});
-window.addEventListener("resize", drawAll);
-drawAll();
+
+window.addEventListener("resize", draw);
+draw();
 </script>
 </body>
 </html>
@@ -1148,7 +963,6 @@ drawAll();
 if st.session_state.app_mode == "RL":
     cols = st.columns(len(PRESETS))
     preset_clicked = False
-
     for idx, col in enumerate(cols):
         p_info = PRESETS[idx]
         if col.button(p_info["label"], use_container_width=True):
@@ -1160,8 +974,6 @@ if st.session_state.app_mode == "RL":
                     st.session_state.auto_play = True
                 preset_clicked = True
                 st.rerun()
-            else:
-                st.warning(f"`{file_path}` が見つかりません。")
 
     audio_input = st.audio_input("または自分の声を録音して解析 (R / L)")
     if not preset_clicked and audio_input is not None:
@@ -1184,39 +996,128 @@ if st.session_state.app_mode == "RL":
         clean_export_name = re.sub(r'_+', '_', clean_export_name).strip('_')
 
         scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
-        html_code = build_spike2_html(
-            scope_data,
-            auto_play=st.session_state.auto_play,
-            export_name=clean_export_name or "sample"
-        )
+        html_code = build_spike2_html(scope_data, auto_play=st.session_state.auto_play, export_name=clean_export_name or "sample")
         st.session_state.auto_play = False
         components.html(html_code, height=640, scrolling=False)
 
-        info = next((p for p in PRESETS if p["label"] in st.session_state.current_label), None)
-        if info:
+else:
+    # =====================================================================
+    # --- MODE 2 (E2 3大プロソディ診断) 画面 ---
+    # =====================================================================
+    st.markdown("""
+    <div style='color: #94A3B8; font-size: 0.95rem; margin-bottom: 12px;'>
+      🎯 <b>診断方法</b>: 練習したい課題（S1: 語彙強弱、S2: 子音連結、S3: 機能語弱化）を選択し、指定の英文をマイクで読み上げてください。<br>
+      試行ごとにデータ点が蓄積され、最新の試行ほど濃く強調表示されます（課題を切り替えるとリセット）。
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 課題選択ボタン (3分割) - 選択切り替え時に履歴をリセット
+    btn_col1, btn_col2, btn_col3 = st.columns(3)
+    with btn_col1:
+        if st.button("課題 1: 語彙強弱 (S1)", type="primary" if st.session_state.e2_selected_passage == "S1_stress" else "secondary", use_container_width=True):
+            if st.session_state.e2_selected_passage != "S1_stress":
+                st.session_state.e2_selected_passage = "S1_stress"
+                st.session_state.e2_eval_history = []  # リセット
+                st.session_state.e2_audio_bytes = None
+                st.rerun()
+    with btn_col2:
+        if st.button("課題 2: 子音連結 (S2)", type="primary" if st.session_state.e2_selected_passage == "S2_clusters" else "secondary", use_container_width=True):
+            if st.session_state.e2_selected_passage != "S2_clusters":
+                st.session_state.e2_selected_passage = "S2_clusters"
+                st.session_state.e2_eval_history = []  # リセット
+                st.session_state.e2_audio_bytes = None
+                st.rerun()
+    with btn_col3:
+        if st.button("課題 3: 機能語弱化 (S3)", type="primary" if st.session_state.e2_selected_passage == "S3_connected" else "secondary", use_container_width=True):
+            if st.session_state.e2_selected_passage != "S3_connected":
+                st.session_state.e2_selected_passage = "S3_connected"
+                st.session_state.e2_eval_history = []  # リセット
+                st.session_state.e2_audio_bytes = None
+                st.rerun()
+
+    active_bm = E2_PASSAGE_BENCHMARKS[st.session_state.e2_selected_passage]
+
+    # お題英文のハイライトカード
+    st.markdown(f"""
+    <div style="background: #0F172A; border: 1px solid #1E293B; border-left: 4px solid #38BDF8; border-radius: 8px; padding: 14px 20px; margin-top: 10px; margin-bottom: 12px;">
+      <div style="font-size: 0.85rem; font-weight: 600; color: #38BDF8; text-transform: uppercase; margin-bottom: 4px;">{active_bm['title']}</div>
+      <div style="font-size: 1.35rem; font-weight: 700; color: #F8FAFC; margin-bottom: 6px; letter-spacing: 0.02em;">"{active_bm['target_text']}"</div>
+      <div style="font-size: 0.9rem; color: #94A3B8; line-height: 1.5;">{active_bm['phonetics_desc']}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    card_col1, card_col2 = st.columns([1.5, 1.0])
+
+    with card_col1:
+        e2_input = st.audio_input("この英文を録音してストライクゾーン診断")
+        if e2_input is not None:
+            new_e2_bytes = e2_input.read()
+            if new_e2_bytes != st.session_state.e2_audio_bytes:
+                st.session_state.e2_audio_bytes = new_e2_bytes
+                tmp_wav = "tmp_e2_eval.wav"
+                with open(tmp_wav, "wb") as f:
+                    f.write(new_e2_bytes)
+                eval_res = evaluate_user_rhythm(tmp_wav, st.session_state.e2_selected_passage)
+                if os.path.exists(tmp_wav):
+                    os.remove(tmp_wav)
+                
+                # 履歴に蓄積
+                if "error" not in eval_res:
+                    st.session_state.e2_eval_history.append(eval_res)
+
+        # 2D Canvas レーダー表示 (履歴リストを渡す)
+        radar_html = build_e2_radar_html(st.session_state.e2_selected_passage, st.session_state.e2_eval_history)
+        components.html(radar_html, height=450, scrolling=False)
+
+    with card_col2:
+        st.markdown("<div style='font-size: 1.05rem; font-weight: bold; color: #F8FAFC; margin-bottom: 8px;'>🎯 最新の診断結果</div>", unsafe_allow_html=True)
+
+        if st.session_state.e2_eval_history:
+            latest_ev = st.session_state.e2_eval_history[-1]
+            trial_no = len(st.session_state.e2_eval_history)
+            
             st.markdown(f"""
-            <div style="background: #0F172A; border: 1px solid #1E293B; border-left: 3px solid #64748B; border-radius: 6px; padding: 12px 18px; margin-top: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                    <span style="font-size: 1.05rem; font-weight: 600; color: #F8FAFC;">{info['title']}</span>
-                    <span style="font-size: 0.85rem; font-weight: 500; color: #94A3B8; background: #1E293B; padding: 2px 8px; border-radius: 4px; border: 1px solid #334155;">{info['phonetics']}</span>
-                </div>
-                <p style="font-size: 0.9rem; color: #94A3B8; margin: 0; line-height: 1.5;">{info['desc']}</p>
+            <div style="background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <span style="font-size: 0.85rem; color: #94A3B8; font-weight: 600;">VERDICT (Trial #{trial_no})</span>
+                <span style="font-size: 0.8rem; color: #64748B;">蓄積データ: {trial_no} 件</span>
+              </div>
+              <div style="font-size: 1.6rem; font-weight: 800; color: {latest_ev['status_color']}; margin-bottom: 10px;">{latest_ev['verdict']}</div>
+              
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8; font-size: 0.9rem;">母音占有率 (%V):</span>
+                <span style="font-weight: bold; color: #F8FAFC;">{latest_ev['pct_v']:.1f} %</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 6px;">
+                <span style="color: #94A3B8; font-size: 0.9rem;">弱母音 P75 長:</span>
+                <span style="font-weight: bold; color: #F8FAFC;">{latest_ev['schwa_p75_ms']:.1f} ms</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                <span style="color: #94A3B8; font-size: 0.9rem;">Mahalanobis 距離 ($D_M^2$):</span>
+                <span style="font-weight: bold; color: #F8FAFC;">{latest_ev['d_m_sq']} (≤5.99 合格)</span>
+              </div>
+              
+              <div style="background: #0F172A; border-radius: 6px; padding: 10px; font-size: 0.88rem; color: #E2E8F0; line-height: 1.45;">
+                💡 <b>アドバイス:</b><br>{latest_ev['feedback']}
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 履歴リセット用ボタン（同一課題内で手動クリアしたい場合）
+            if st.button("この課題の履歴をクリア", use_container_width=True):
+                st.session_state.e2_eval_history = []
+                st.session_state.e2_audio_bytes = None
+                st.rerun()
+
+        else:
+            st.markdown("""
+            <div style="background: #1E293B; border: 1px dashed #475569; border-radius: 8px; padding: 24px; text-align: center; color: #94A3B8;">
+              左側のマイクボタンを押して、上記のお題英文を読み上げてください。<br><br>
+              録音を重ねると、過去の試行が薄い点でプロットされ、最新の改善が濃い点で表示されます。
             </div>
             """, unsafe_allow_html=True)
 
-else:
-    # --- E2: 強弱リズム・母音長比プロトタイプ画面 ---
-    st.markdown(
-        "<div style='color:#94A3B8; font-size:0.95rem; margin-bottom:8px;'>"
-        "💡 <b>テスト方法</b>: マイクで「<b>ba-NA-na</b>（英語リズム）」や「<b>バ・ナ・ナ</b>（日本語リズム）」、「<b>CA-m-ra</b>」などを録音してください。自動で強母音と弱母音を検出し、比率をストライクゾーン判定します（波形上のドラッグで手動調整も可能）。"
-        "</div>",
-        unsafe_allow_html=True
-    )
-    rhythm_input = st.audio_input("自分の声を録音してリズム・母音長比をテスト")
-    if rhythm_input is not None:
-        st.session_state.rhythm_audio_bytes = rhythm_input.read()
-
-    if st.session_state.rhythm_audio_bytes is not None:
-        r_data = extract_rhythm_data_from_bytes(st.session_state.rhythm_audio_bytes)
-        r_html = build_rhythm_html(r_data)
-        components.html(r_html, height=620, scrolling=False)
+        if os.path.exists(active_bm["ref_audio"]):
+            st.markdown("<div style='font-size: 0.95rem; font-weight: bold; color: #94A3B8; margin-top: 14px; margin-bottom: 4px;'>🔊 ネイティブお手本音声</div>", unsafe_allow_html=True)
+            with open(active_bm["ref_audio"], "rb") as rf:
+                st.audio(rf.read(), format="audio/wav")

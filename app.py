@@ -64,10 +64,19 @@ st.markdown("""
         border-color: #64748B !important;
         color: #FFFFFF !important;
     }
-    div[data-testid="column"] .stButton button[kind="primary"] {
-        background-color: #2563EB !important;
+    /* モード切替および課題切替のアクティブボタン（Benchmark ON と統一した青色ティント） */
+    .stButton button[kind="primary"],
+    .stButton button[data-testid="baseButton-primary"] {
+        background-color: #1E3A8A !important;
         border-color: #3B82F6 !important;
-        color: #FFFFFF !important;
+        color: #93C5FD !important;
+        box-shadow: 0 0 0 1px #3B82F6 !important;
+    }
+    .stButton button[kind="primary"]:hover,
+    .stButton button[data-testid="baseButton-primary"]:hover {
+        background-color: #1E40AF !important;
+        border-color: #60A5FA !important;
+        color: #BFDBFE !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -78,7 +87,7 @@ if "app_mode" not in st.session_state:
 if "current_audio_bytes" not in st.session_state:
     st.session_state.current_audio_bytes = None
 if "current_label" not in st.session_state:
-    st.session_state.current_label = ""
+    st.session_state.current_label = "お手本: Right (US)"
 if "last_recorded_bytes" not in st.session_state:
     st.session_state.last_recorded_bytes = None
 if "auto_play" not in st.session_state:
@@ -1123,7 +1132,13 @@ if st.session_state.app_mode == "RL":
     preset_clicked = False
     for idx, col in enumerate(cols):
         p_info = PRESETS[idx]
-        if col.button(p_info["label"], use_container_width=True):
+        # 現在選択されているラベルと一致するか判定
+        is_active = (st.session_state.current_label == f"お手本: {p_info['label']}")
+        if col.button(
+            p_info["label"],
+            type="primary" if is_active else "secondary",
+            use_container_width=True
+        ):
             file_path = os.path.join(PRESET_DIR, p_info["file"])
             if os.path.exists(file_path):
                 with open(file_path, "rb") as f:

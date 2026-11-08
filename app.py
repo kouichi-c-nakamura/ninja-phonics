@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import parselmouth
 import soundfile as sf
 import numpy as np
+import pandas as pd
 import base64
 import json
 import io
@@ -19,7 +20,7 @@ except ImportError:
 
 st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide", initial_sidebar_state="collapsed")
 
-# 画面パディングとスタイル調整
+# 画面パディングとスタイル調整（ヘッダーと最上部ボタンの被りを防止）
 st.markdown("""
 <style>
     header[data-testid="stHeader"] {
@@ -89,7 +90,7 @@ if "e2_selected_passage" not in st.session_state:
 if "e2_audio_bytes" not in st.session_state:
     st.session_state.e2_audio_bytes = None
 if "e2_eval_history" not in st.session_state:
-    st.session_state.e2_eval_history = []  # 同一タスク中の履歴を保持するリスト
+    st.session_state.e2_eval_history = []
 
 # --- ヘッダー & 最上段モード切替ボタン ---
 head_col1, head_col2, head_col3 = st.columns([2.0, 1.2, 1.2], vertical_alignment="center")
@@ -134,31 +135,95 @@ def decode_audio_bytes(audio_bytes: bytes):
 
 
 # =====================================================================
-# MODE 1: R / L ホルマントスコープ (既存機能)
+# MODE 1: R / L ホルマントスコープ (A1)
 # =====================================================================
 PRESET_DIR = "presets"
 PRESETS = [
-    {"label": "Right (US)", "file": "right_us.wav", "title": "Right /raɪt/ (US)", "phonetics": "/r/ のくびれ (谷)", "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。"},
-    {"label": "Right (UK)", "file": "right_uk.wav", "title": "Right /raɪt/ (UK)", "phonetics": "/r/ の狭窄", "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。二重母音 /aɪ/ への移行部でF2が上昇します。"},
-    {"label": "Light (US)", "file": "light_us.wav", "title": "Light /laɪt/ (US)", "phonetics": "Dark L（軟口蓋化）", "desc": "開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に開きます。"},
-    {"label": "Light (UK)", "file": "light_uk.wav", "title": "Light /laɪt/ (UK)", "phonetics": "Clear L", "desc": "語頭の /l/ でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"},
-    {"label": "White (UK)", "file": "white_uk.wav", "title": "White /waɪt/ (UK)", "phonetics": "円唇によるF2低下", "desc": "語頭で唇を丸めるためF2が下がりますが、F3は下がらないため、差分ラインは谷になりません。"},
-    {"label": "ライト (JP)", "file": "raito_jp.wav", "title": "日本語「ライト」/ɾaɪto/", "phonetics": "タップ破裂と語尾母音付加", "desc": "「ラ」で瞬間的な弾き音が起き、語尾には英語の /t/ にはない母音「オ」が明瞭に残ります。"},
-    {"label": "Really (US)", "file": "really_us.wav", "title": "Really (US)", "phonetics": "/r/ の深谷から /l/ へのジャンプ", "desc": "語頭 /r/ で青（F3）が緑（F2）へ沈み、後半の /l/ に向かって F3 が 3000Hz 超へ跳ね上がります。"},
-    {"label": "Really (UK)", "file": "really_uk.wav", "title": "Really (UK)", "phonetics": "センタリング二重母音の渡り", "desc": "前半の /r/ で谷を作った後、イギリス英語特有の曖昧母音 /ə/ を挟みながら滑らかに立ち上がります。"},
-    {"label": "Very (US)", "file": "very_us.wav", "title": "Very (US)", "phonetics": "有声摩擦 /v/ ＋ r-colored母音", "desc": "有声摩擦 /v/ の振動が続き、続く母音〜/r/ で F3 が引きずり下ろされ、Δ が 500Hz 未満になります。"},
-    {"label": "Very (UK)", "file": "very_uk.wav", "title": "Very (UK)", "phonetics": "/v/ から短母音を経て鋭い /r/ へ", "desc": "米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっています。"}
+    {
+        "label": "Right (US)",
+        "file": "right_us.wav",
+        "title": "Right /raɪt/ (US)",
+        "phonetics": "/r/ のくびれ (谷)",
+        "desc": "語頭でF3が急降下してF2に接近し、差分ライン(Δ)が1000Hz破線より深く潜り込みます。舌の両側面を上顎の奥歯に密着させることでこの深い谷が生まれます。"
+    },
+    {
+        "label": "Right (UK)",
+        "file": "right_uk.wav",
+        "title": "Right /raɪt/ (UK)",
+        "phonetics": "/r/ の狭窄",
+        "desc": "語頭でF3が急降下して1000Hz基準線を下回ります。その後の二重母音 /aɪ/ への移行部でF2が右肩上がりに上昇します。"
+    },
+    {
+        "label": "Light (US)",
+        "file": "light_us.wav",
+        "title": "Light /laɪt/ (US)",
+        "phonetics": "Dark L（軟口蓋化）による低F2・高Δ",
+        "desc": "米語の語頭 /l/ は奥舌が引かれるため（Dark L傾向）、開始部で F2（緑）が 1200Hz 付近と低く、F3（青）との差分（Δ）が 2500Hz 以上に大きく開くのが特徴です。"
+    },
+    {
+        "label": "Light (UK)",
+        "file": "light_uk.wav",
+        "title": "Light /laɪt/ (UK)",
+        "phonetics": "F3高域維持 (Clear L)",
+        "desc": "語頭の /l/ でF3は2700〜2800Hzの高域にとどまり、差分(Δ)は1000Hzを割らずに推移します。"
+    },
+    {
+        "label": "White (UK)",
+        "file": "white_uk.wav",
+        "title": "White /waɪt/ (UK)",
+        "phonetics": "円唇によるF2低下",
+        "desc": "語頭で唇を丸めるためF2が一時的に下がりますが、F3は下がらないため、差分ラインはRのようなくびれになりません。"
+    },
+    {
+        "label": "ライト (JP)",
+        "file": "raito_jp.wav",
+        "title": "日本語「ライト」/ɾaɪto/",
+        "phonetics": "タップ破裂と語尾母音付加",
+        "desc": "「ラ」で瞬間的な弾き音（破裂）が起き、語尾には英語の /t/ にはない母音「オ」のホルマントが明瞭に残ります。"
+    },
+    {
+        "label": "Really (US)",
+        "file": "really_us.wav",
+        "title": "Really /ˈrɪli/ ~ /ˈriːli/ (US)",
+        "phonetics": "/r/ の深谷から /l/ の天井へのジャンプ",
+        "desc": "語頭の /r/ で青（F3）が緑（F2）へ沈み込み、黄色（Δ）が 500Hz 前後まで深く潜ります。そこから後半の /l/ に向かって F3 が 3000Hz 超へ跳ね上がるコントラストが特徴です。"
+    },
+    {
+        "label": "Really (UK)",
+        "file": "really_uk.wav",
+        "title": "Really /ˈrɪəli/ (UK)",
+        "phonetics": "センタリング二重母音を経由する滑らかな渡り",
+        "desc": "前半の /r/ でしっかり 1000Hz 破線を潜る谷を作った後、イギリス英語特有の曖昧母音 /ə/ を挟みながら、後半の /l/ に向かって滑らかに F3 が立ち上がります。"
+    },
+    {
+        "label": "Very (US)",
+        "file": "very_us.wav",
+        "title": "Very /ˈveri/ (US)",
+        "phonetics": "有声摩擦 /v/ の振動持続 ＋ r-colored母音のくびれ",
+        "desc": "語頭は有声摩擦 /v/ の規則的な声帯振動が続き、破裂音（b）のようなスパイクがありません。続く母音〜/r/ で F3 が引きずり下ろされ、Δ が 500Hz 未満の深い谷を作ります。"
+    },
+    {
+        "label": "Very (UK)",
+        "file": "very_uk.wav",
+        "title": "Very /ˈveri/ (UK)",
+        "phonetics": "/v/ から短母音を経て短く鋭い /r/ へ",
+        "desc": "米語に比べて母音のR音性化が少なく、谷の幅（持続時間）がコンパクトで引き締まっています。"
+    }
 ]
+
 
 def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 5000.0):
     audio_data, sample_rate = decode_audio_bytes(audio_bytes)
+
     snd = parselmouth.Sound(audio_data.astype(np.float64), sampling_frequency=float(sample_rate))
     pitch = snd.to_pitch()
     formant = snd.to_formant_burg(time_step=0.005, max_number_of_formants=5.0, maximum_formant=max_formant_hz)
     intensity = snd.to_intensity()
 
     times = formant.xs()
-    f2_list, f3_list, delta_list, valid_times = [], [], [], []
+    f2_list, f3_list, delta_list = [], [], []
+    valid_times = []
+
     max_int = np.max(intensity.values) if len(intensity.values) > 0 else 0
     threshold_int = max(25.0, max_int - 35.0)
 
@@ -178,17 +243,26 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
         else:
             f2_list.append(None); f3_list.append(None); delta_list.append(None)
 
-    x_min = max(0.0, float(min(valid_times)) - 0.08) if valid_times else 0.0
-    x_max = min(float(snd.duration), float(max(valid_times)) + 0.25) if valid_times else float(snd.duration)
+    if valid_times:
+        x_min = max(0.0, float(min(valid_times)) - 0.08)
+        x_max = min(float(snd.duration), float(max(valid_times)) + 0.25)
+    else:
+        x_min, x_max = 0.0, float(snd.duration)
 
     spec = snd.to_spectrogram(window_length=0.005, maximum_frequency=4200.0, time_step=0.003, frequency_step=25.0)
     spec_vals = 10.0 * np.log10(np.maximum(spec.values, 1e-12))
-    t_mask = (spec.xs() >= x_min) & (spec.xs() <= x_max)
-    f_mask = (spec.ys() >= 500.0) & (spec.ys() <= 4000.0)
+    spec_t = spec.xs()
+    spec_f = spec.ys()
+
+    t_mask = (spec_t >= x_min) & (spec_t <= x_max)
+    f_mask = (spec_f >= 500.0) & (spec_f <= 4000.0)
 
     if np.any(t_mask) and np.any(f_mask):
-        sub_spec = np.flipud(spec_vals[np.ix_(f_mask, t_mask)])
-        norm_spec = np.clip((sub_spec - (np.max(sub_spec) - 45.0)) / 45.0, 0.0, 1.0)
+        sub_spec = spec_vals[np.ix_(f_mask, t_mask)]
+        sub_spec = np.flipud(sub_spec)
+        max_db = np.max(sub_spec)
+        dynamic_range = 45.0
+        norm_spec = np.clip((sub_spec - (max_db - dynamic_range)) / dynamic_range, 0.0, 1.0)
         spec_u8 = (norm_spec * 255).astype(np.uint8)
         spec_h, spec_w = spec_u8.shape
         spec_b64 = base64.b64encode(spec_u8.tobytes()).decode("utf-8")
@@ -196,8 +270,9 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
         spec_h, spec_w, spec_b64 = 0, 0, ""
 
     raw_samples = snd.values[0]
+    raw_times = np.linspace(0, snd.duration, len(raw_samples))
     step = max(1, len(raw_samples) // 3000)
-    wave_t = np.round(np.linspace(0, snd.duration, len(raw_samples))[::step], 4).tolist()
+    wave_t = np.round(raw_times[::step], 4).tolist()
     wave_y = np.round(raw_samples[::step], 4).tolist()
 
     wav_io = io.BytesIO()
@@ -206,11 +281,18 @@ def extract_scope_data_from_bytes(audio_bytes: bytes, max_formant_hz: float = 50
 
     return {
         "duration": float(snd.duration),
-        "x_min": round(x_min, 3), "x_max": round(x_max, 3),
+        "x_min": round(x_min, 3),
+        "x_max": round(x_max, 3),
         "times": np.round(times, 4).tolist(),
-        "f2": f2_list, "f3": f3_list, "delta": delta_list,
-        "wave_t": wave_t, "wave_y": wave_y, "wav_b64": wav_b64,
-        "spec_w": spec_w, "spec_h": spec_h, "spec_b64": spec_b64
+        "f2": f2_list,
+        "f3": f3_list,
+        "delta": delta_list,
+        "wave_t": wave_t,
+        "wave_y": wave_y,
+        "wav_b64": wav_b64,
+        "spec_w": spec_w,
+        "spec_h": spec_h,
+        "spec_b64": spec_b64
     }
 
 
@@ -470,7 +552,6 @@ function drawBackground() {{
     bgCtx.fillText(hz.toString(), MARGIN.left - 8, y);
   }});
 
-  // R Strike Zone (<1000Hz)
   const yTarget = valToY(1000, dMin, dMax, p3);
   const yZero = valToY(0, dMin, dMax, p3);
   bgCtx.save();
@@ -629,7 +710,6 @@ window.addEventListener("mouseup", () => {{
 window.addEventListener("resize", () => {{ drawBackground(); drawOverlay(); }});
 drawBackground(); drawOverlay();
 
-// 見本音声選択時の自動再生
 if (D.auto_play) setTimeout(() => {{ cursorT = xMin; startPlayback(); }}, 600);
 </script>
 </body>
@@ -672,6 +752,20 @@ E2_PASSAGE_BENCHMARKS = {
         "ref_audio": "benchmarks/S3_connected/UK-Native/UK-Native_02_AliceClearEn_female.wav"
     }
 }
+
+
+@st.cache_data
+def load_cached_benchmark_df():
+    """ベンチマーク結果CSVをキャッシュ読み込み"""
+    p1 = "benchmarks/benchmark_results_all.csv"
+    p2 = "benchmarks/benchmark_results.csv"
+    target = p1 if os.path.exists(p1) else (p2 if os.path.exists(p2) else None)
+    if target:
+        df = pd.read_csv(target)
+        if "sentence_key" not in df.columns:
+            df["sentence_key"] = "S1_stress"
+        return df
+    return None
 
 
 def evaluate_user_rhythm(audio_path: str, passage_key: str):
@@ -737,7 +831,7 @@ def evaluate_user_rhythm(audio_path: str, passage_key: str):
 
 
 def build_e2_radar_html(passage_key: str, eval_history: list = None) -> str:
-    """Canvas上に選択された課題文の95% Strike Zone楕円とユーザーの試行履歴（フェード点群）を描画"""
+    """Canvas上に選択された課題文のStrike Zone、ユーザー履歴、および薄いベンチマーク点群を描画"""
     bm = E2_PASSAGE_BENCHMARKS[passage_key]
     mu = bm["mu"]
     cov = bm["cov"]
@@ -754,6 +848,23 @@ def build_e2_radar_html(passage_key: str, eval_history: list = None) -> str:
     v1_ci = vecs[:, 0] * (n_std_ci * np.sqrt(max(vals[0], 0)))
     v2_ci = vecs[:, 1] * (n_std_ci * np.sqrt(max(vals[1], 0)))
 
+    # ベンチマーク背景点群の抽出
+    bench_points = []
+    df_all = load_cached_benchmark_df()
+    if df_all is not None:
+        sub = df_all[df_all["sentence_key"] == passage_key]
+        for _, row in sub.iterrows():
+            c_name = row["cohort"]
+            col = "#38BDF8" if c_name == "US-Native" else (
+                  "#10B981" if c_name == "UK-Native" else (
+                  "#F59E0B" if c_name == "JP-Accented" else "#EF4444"))
+            bench_points.append({
+                "pct_v": float(row["pct_v"]),
+                "schwa_p75_ms": float(row["schwa_p75_ms"]),
+                "color": col,
+                "cohort": c_name
+            })
+
     history_list = eval_history if eval_history is not None else []
 
     canvas_data = {
@@ -768,7 +879,8 @@ def build_e2_radar_html(passage_key: str, eval_history: list = None) -> str:
         "x_max": bm["x_range"][1],
         "y_min": bm["y_range"][0],
         "y_max": bm["y_range"][1],
-        "history": history_list
+        "history": history_list,
+        "benchmark": bench_points
     }
 
     return f"""
@@ -778,17 +890,24 @@ def build_e2_radar_html(passage_key: str, eval_history: list = None) -> str:
 <style>
   body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
   .toolbar {{ display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
-  .toolbar-title {{ font-size: 13px; font-weight: 600; color: #94A3B8; }}
+  .toolbar-title {{ font-size: 13px; font-weight: 600; color: #94A3B8; display: flex; align-items: center; gap: 8px; }}
+  .btn-group {{ display: flex; align-items: center; gap: 8px; }}
   button {{ font-family: inherit; font-size: 12px; font-weight: bold; padding: 5px 12px; border-radius: 6px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; }}
   button:hover {{ background: #334155; color: #FFFFFF; }}
+  button.toggle-active {{ background: #1E3A8A; color: #93C5FD; border-color: #3B82F6; }}
   #scope-wrapper {{ position: relative; width: 100%; height: 400px; background: #090D16; border: 1px solid #1E293B; border-top: none; border-radius: 0 0 8px 8px; }}
   canvas {{ position: absolute; left: 0; top: 0; width: 100%; height: 100%; }}
 </style>
 </head>
 <body>
 <div class="toolbar">
-  <div class="toolbar-title">🎯 2D Strike Zone Radar (Trials: {len(history_list)})</div>
-  <button id="btn-dl-radar">💾 Radar (.png)</button>
+  <div class="toolbar-title">
+    <span>🎯 2D Strike Zone Radar (Trials: {len(history_list)})</span>
+  </div>
+  <div class="btn-group">
+    <button id="btn-toggle-bm" class="toggle-active">👥 Benchmark: ON</button>
+    <button id="btn-dl-radar">💾 Radar (.png)</button>
+  </div>
 </div>
 <div id="scope-wrapper">
   <canvas id="radar-canvas"></canvas>
@@ -799,6 +918,9 @@ const canvas = document.getElementById('radar-canvas');
 const ctx = canvas.getContext('2d');
 const wrapper = document.getElementById('scope-wrapper');
 const btnDl = document.getElementById('btn-dl-radar');
+const btnToggleBm = document.getElementById('btn-toggle-bm');
+
+let showBenchmark = true;
 
 const MARGIN = {{ left: 80, right: 30, top: 20, bottom: 45 }};
 let W = 800, H = 400;
@@ -864,7 +986,7 @@ function draw() {{
   ctx.rect(MARGIN.left, MARGIN.top, plotW, plotH);
   ctx.clip();
 
-  // 1. 95% Native Strike Zone
+  // 1. 95% Native Strike Zone 楕円
   createEllipsePath(ctx, D.mu_x, D.mu_y, D.v1_95, D.v2_95);
   ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
   ctx.fill();
@@ -882,12 +1004,45 @@ function draw() {{
   ctx.setLineDash([]);
   ctx.stroke();
 
-  // 3. 過去試行の蓄積描画（古いほど薄く、最新ほど濃く発光）
+  // 3. ベンチマーク背景ゴースト点群の描画 (ON時のみ)
+  if (showBenchmark && D.benchmark && D.benchmark.length > 0) {{
+    D.benchmark.forEach(b => {{
+      const bx = xToPx(b.pct_v);
+      const by = yToPx(b.schwa_p75_ms);
+      
+      ctx.save();
+      ctx.globalAlpha = 0.38;
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.arc(bx, by, 4.5, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.restore();
+    }});
+
+    const legX = W - MARGIN.right - 145;
+    const legY = MARGIN.top + 8;
+    ctx.fillStyle = "rgba(9, 13, 22, 0.82)";
+    ctx.fillRect(legX, legY, 135, 52);
+    ctx.strokeStyle = "#1E293B"; ctx.lineWidth = 1.0;
+    ctx.strokeRect(legX, legY, 135, 52);
+
+    ctx.font = "10.5px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    
+    ctx.fillStyle = "#38BDF8"; ctx.beginPath(); ctx.arc(legX + 12, legY + 12, 3.5, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = "#94A3B8"; ctx.fillText("Native (US/UK)", legX + 22, legY + 12);
+    
+    ctx.fillStyle = "#F59E0B"; ctx.beginPath(); ctx.arc(legX + 12, legY + 26, 3.5, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = "#94A3B8"; ctx.fillText("JP-Accented", legX + 22, legY + 26);
+    
+    ctx.fillStyle = "#EF4444"; ctx.beginPath(); ctx.arc(legX + 12, legY + 40, 3.5, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = "#94A3B8"; ctx.fillText("JP-Mora-Forced", legX + 22, legY + 40);
+  }}
+
+  // 4. 生徒の試行履歴（フェード描画）
   const total = D.history.length;
   if (total > 0) {{
-    // 試行をつなぐ淡いトラッキングライン（学習の歩み）
     if (total > 1) {{
-      ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+      ctx.strokeStyle = "rgba(248, 250, 252, 0.30)";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -906,15 +1061,12 @@ function draw() {{
       const isLatest = (idx === total - 1);
       const px = xToPx(pt.pct_v);
       const py = yToPx(pt.schwa_p75_ms);
-      
-      // 不透明度グラデーション: 最古 0.25 〜 最新 1.0
-      const alpha = total === 1 ? 1.0 : 0.25 + (idx / (total - 1)) * 0.75;
+      const alpha = total === 1 ? 1.0 : 0.35 + (idx / (total - 1)) * 0.65;
 
       ctx.save();
       ctx.globalAlpha = alpha;
 
       if (isLatest) {{
-        // 最新試行: パルス外光 ＋ 強調ピン
         ctx.fillStyle = pt.status_color + "44";
         ctx.beginPath(); ctx.arc(px, py, 18, 0, 2 * Math.PI); ctx.fill();
 
@@ -926,12 +1078,11 @@ function draw() {{
         ctx.textAlign = px > W - 140 ? "right" : "left";
         ctx.fillText(`#${{idx+1}} (最新): ${{pt.pct_v}}%, ${{pt.schwa_p75_ms}}ms`, px + (px > W - 140 ? -12 : 12), py - 8);
       }} else {{
-        // 過去試行: 小さめのドット ＋ 試行番号
         ctx.fillStyle = pt.status_color;
-        ctx.strokeStyle = "rgba(11, 15, 25, 0.8)"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = "rgba(11, 15, 25, 0.9)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
 
-        ctx.fillStyle = "#94A3B8"; ctx.font = "10px sans-serif";
+        ctx.fillStyle = "#E2E8F0"; ctx.font = "10px sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(`#${{idx+1}}`, px, py - 8);
       }}
@@ -941,6 +1092,13 @@ function draw() {{
 
   ctx.restore();
 }}
+
+btnToggleBm.addEventListener("click", () => {{
+  showBenchmark = !showBenchmark;
+  btnToggleBm.textContent = showBenchmark ? "👥 Benchmark: ON" : "👥 Benchmark: OFF";
+  btnToggleBm.classList.toggle("toggle-active", showBenchmark);
+  draw();
+}});
 
 btnDl.addEventListener("click", () => {{
   const link = document.createElement("a");
@@ -1017,21 +1175,21 @@ else:
         if st.button("課題 1: 語彙強弱 (S1)", type="primary" if st.session_state.e2_selected_passage == "S1_stress" else "secondary", use_container_width=True):
             if st.session_state.e2_selected_passage != "S1_stress":
                 st.session_state.e2_selected_passage = "S1_stress"
-                st.session_state.e2_eval_history = []  # リセット
+                st.session_state.e2_eval_history = []
                 st.session_state.e2_audio_bytes = None
                 st.rerun()
     with btn_col2:
         if st.button("課題 2: 子音連結 (S2)", type="primary" if st.session_state.e2_selected_passage == "S2_clusters" else "secondary", use_container_width=True):
             if st.session_state.e2_selected_passage != "S2_clusters":
                 st.session_state.e2_selected_passage = "S2_clusters"
-                st.session_state.e2_eval_history = []  # リセット
+                st.session_state.e2_eval_history = []
                 st.session_state.e2_audio_bytes = None
                 st.rerun()
     with btn_col3:
         if st.button("課題 3: 機能語弱化 (S3)", type="primary" if st.session_state.e2_selected_passage == "S3_connected" else "secondary", use_container_width=True):
             if st.session_state.e2_selected_passage != "S3_connected":
                 st.session_state.e2_selected_passage = "S3_connected"
-                st.session_state.e2_eval_history = []  # リセット
+                st.session_state.e2_eval_history = []
                 st.session_state.e2_audio_bytes = None
                 st.rerun()
 
@@ -1061,11 +1219,9 @@ else:
                 if os.path.exists(tmp_wav):
                     os.remove(tmp_wav)
                 
-                # 履歴に蓄積
                 if "error" not in eval_res:
                     st.session_state.e2_eval_history.append(eval_res)
 
-        # 2D Canvas レーダー表示 (履歴リストを渡す)
         radar_html = build_e2_radar_html(st.session_state.e2_selected_passage, st.session_state.e2_eval_history)
         components.html(radar_html, height=450, scrolling=False)
 
@@ -1103,7 +1259,6 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # 履歴リセット用ボタン（同一課題内で手動クリアしたい場合）
             if st.button("この課題の履歴をクリア", use_container_width=True):
                 st.session_state.e2_eval_history = []
                 st.session_state.e2_audio_bytes = None

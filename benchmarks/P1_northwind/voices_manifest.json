@@ -26,5 +26,33 @@
       "voice_id": "MNUBQXVM4SBzrA4AbVeB",
       "gender": "male"
     }
+  ],
+  "JP-Accented": [
+    {
+      "file": "JP-Accented_04_Riu.wav",
+      "name": "Riu",
+      "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+      "gender": "male"
+    },
+    {
+      "file": "JP-Accented_05_Kaori.wav",
+      "name": "Kaori",
+      "voice_id": "30Bl9aRayVzd7rYeBNHc",
+      "gender": "female"
+    }
+  ],
+  "JP-Mora-Forced": [
+    {
+      "file": "JP-Mora-Forced_04_Riu.wav",
+      "name": "Riu",
+      "voice_id": "kDjNtb1AbMP0kqZ1BUxW",
+      "gender": "male"
+    },
+    {
+      "file": "JP-Mora-Forced_05_Kaori.wav",
+      "name": "Kaori",
+      "voice_id": "30Bl9aRayVzd7rYeBNHc",
+      "gender": "female"
+    }
   ]
 }

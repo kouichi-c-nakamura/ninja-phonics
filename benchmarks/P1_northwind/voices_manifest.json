@@ -1,0 +1,30 @@
+{
+  "US-Native": [
+    {
+      "file": "US-Native_06_Elise.wav",
+      "name": "Elise",
+      "voice_id": "EST9Ui6982FZPSi7gCHi",
+      "gender": "female"
+    }
+  ],
+  "UK-Native": [
+    {
+      "file": "UK-Native_04_Leon.wav",
+      "name": "Leon",
+      "voice_id": "1LECWyROimjWHAqjvjqa",
+      "gender": "male"
+    },
+    {
+      "file": "UK-Native_05_Lucy.wav",
+      "name": "Lucy",
+      "voice_id": "lcMyyd2HUfFzxdCaC4Ta",
+      "gender": "female"
+    },
+    {
+      "file": "UK-Native_06_Fraser.wav",
+      "name": "Fraser",
+      "voice_id": "MNUBQXVM4SBzrA4AbVeB",
+      "gender": "male"
+    }
+  ]
+}

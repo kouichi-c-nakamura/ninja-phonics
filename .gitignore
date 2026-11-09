@@ -83,3 +83,4 @@ recordings/
 
 # Jupyter Notebook キャッシュ
 .ipynb_checkpoints
+temp.ipynb

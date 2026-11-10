@@ -38,7 +38,7 @@ if "e2_last_analyzed_text" not in st.session_state:
     st.session_state.e2_last_analyzed_text = st.session_state.e2_custom_text
 if "e2_audio_bytes" not in st.session_state: st.session_state.e2_audio_bytes = None
 if "e2_eval_history" not in st.session_state: st.session_state.e2_eval_history = []
-if "e2_plot_view" not in st.session_state: st.session_state.e2_plot_view = "word_swarm"
+if "e2_plot_view" not in st.session_state: st.session_state.e2_plot_view = "metrics_1d"
 
 # ブランドヘッダー
 st.markdown(
@@ -143,8 +143,14 @@ else:
 
     txt_col1, txt_col2 = st.columns([4.8, 1.0], vertical_alignment="bottom")
     with txt_col1:
-        th = 85 if st.session_state.e2_category == "passage" else 55
-        user_target_text = st.text_area("課題テキスト (自由に書き換え可能)", value=st.session_state.e2_custom_text, height=th, key="e2_text_input_widget")
+        # 高さを従来の2倍に拡大 (長文: 170px, 短文: 110px)
+        th = 170 if st.session_state.e2_category == "passage" else 110
+        user_target_text = st.text_area(
+            "課題テキスト (自由に書き換え可能)", 
+            value=st.session_state.e2_custom_text, 
+            height=th, 
+            key="e2_text_input_widget"
+        )
     with txt_col2:
         if st.button("例文に戻す", use_container_width=True):
             t_txt = active_bm["target_text"]
@@ -205,11 +211,11 @@ else:
             if st.button("1. 2D 総合楕円", type="primary" if st.session_state.e2_plot_view == "scatter2d" else "secondary", use_container_width=True):
                 st.session_state.e2_plot_view = "scatter2d"; st.rerun()
         with v_btn2:
-            if st.button("2. 機能語 Swarm", type="primary" if st.session_state.e2_plot_view == "word_swarm" else "secondary", use_container_width=True):
-                st.session_state.e2_plot_view = "word_swarm"; st.rerun()
-        with v_btn3:
-            if st.button("3. 指標 1D 分布", type="primary" if st.session_state.e2_plot_view == "metrics_1d" else "secondary", use_container_width=True):
+            if st.button("2. 指標 1D 分布", type="primary" if st.session_state.e2_plot_view == "metrics_1d" else "secondary", use_container_width=True):
                 st.session_state.e2_plot_view = "metrics_1d"; st.rerun()
+        with v_btn3:
+            if st.button("3. 機能語 Swarm", type="primary" if st.session_state.e2_plot_view == "word_swarm" else "secondary", use_container_width=True):
+                st.session_state.e2_plot_view = "word_swarm"; st.rerun()
 
         if st.session_state.e2_eval_history:
             latest_ev = st.session_state.e2_eval_history[-1]

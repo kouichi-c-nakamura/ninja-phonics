@@ -8,9 +8,11 @@ import base64
 import json
 import io
 import os
+import glob
 import re
+from pathlib import Path
 
-# MMS_FA アライメントエンジンのインポート（E2用）
+# MMS_FA アライメントエンジンのインポート
 try:
     from test_rhythm_align import align_word_characters, map_words_to_phonemes
     from evaluate_benchmarks import compute_robust_metrics
@@ -18,95 +20,147 @@ try:
 except ImportError:
     ALIGNMENT_AVAILABLE = False
 
-st.set_page_config(page_title="NinjaPhonetics Scope", layout="wide", initial_sidebar_state="collapsed")
-
-# 画面パディングとスタイル調整
-st.markdown("""
-<style>
-    header[data-testid="stHeader"] {
-        height: 2.5rem !important;
-        background: transparent !important;
-    }
-    .block-container {
-        padding-top: 3.2rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-    }
-    h1 {
-        font-size: 1.45rem !important;
-        font-weight: 700 !important;
-        margin: 0 !important;
-        color: #F8FAFC !important;
-        line-height: 2.2rem !important;
-    }
-    div[data-testid="stAudioInput"] {
-        background: #1E293B;
-        border: 1px solid #334155;
-        border-radius: 8px;
-        padding: 6px 14px;
-        margin-bottom: 0.4rem;
-    }
-    div[data-testid="stAudioInput"] button {
-        transform: scale(1.1);
-    }
-    .stButton button {
-        background-color: #1E293B !important;
-        color: #E2E8F0 !important;
-        border: 1px solid #475569 !important;
-        font-weight: bold !important;
-        padding: 6px 8px !important;
-        border-radius: 6px !important;
-        font-size: 0.9rem !important;
-    }
-    .stButton button:hover {
-        background-color: #334155 !important;
-        border-color: #64748B !important;
-        color: #FFFFFF !important;
-    }
-    .stButton button[kind="primary"],
-    .stButton button[data-testid="baseButton-primary"] {
-        background-color: #1E3A8A !important;
-        border-color: #3B82F6 !important;
-        color: #93C5FD !important;
-        box-shadow: 0 0 0 1px #3B82F6 !important;
-    }
-    .stButton button[kind="primary"]:hover,
-    .stButton button[data-testid="baseButton-primary"]:hover {
-        background-color: #1E40AF !important;
-        border-color: #60A5FA !important;
-        color: #BFDBFE !important;
-    }
-    div[data-testid="stTextArea"] textarea {
-        background-color: #0F172A !important;
-        color: #F8FAFC !important;
-        border: 1px solid #334155 !important;
-        font-size: 1.02rem !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        line-height: 1.5 !important;
-    }
-    div[data-testid="stTextArea"] textarea:focus {
-        border-color: #38BDF8 !important;
-        box-shadow: 0 0 0 1px #38BDF8 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="NinjaPhonetics: Biofeedback Scope", layout="wide", initial_sidebar_state="collapsed")
 
 # =====================================================================
-# MODE 2 定数 & 辞書定義
+# 手裏剣アイコンのロード (インデントなしで確実にHTMLとして解釈させる)
+# =====================================================================
+def get_shuriken_icon_html(size_px: int = 28) -> str:
+    for fname in ["pink shuriken 32.png", "pink shuriken 640.jpg", "assets/pink shuriken 32.png"]:
+        if os.path.exists(fname):
+            with open(fname, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            mime = "image/png" if fname.endswith(".png") else "image/jpeg"
+            return (
+                f'<img src="data:{mime};base64,{b64}" width="{size_px}" height="{size_px}" '
+                f'style="filter: hue-rotate(190deg) saturate(0.28) brightness(1.65) contrast(1.15) '
+                f'drop-shadow(0 0 6px rgba(186, 230, 253, 0.55)); vertical-align: middle; border-radius: 4px;" />'
+            )
+    return (
+        f'<svg width="{size_px}" height="{size_px}" viewBox="0 0 64 64" style="filter: drop-shadow(0 0 5px rgba(186, 230, 253, 0.5)); vertical-align: middle;">'
+        f'<defs><linearGradient id="iceBlade" x1="0%" y1="0%" x2="100%" y2="100%">'
+        f'<stop offset="0%" stop-color="#F8FAFC"/><stop offset="55%" stop-color="#BAE6FD"/><stop offset="100%" stop-color="#38BDF8"/>'
+        f'</linearGradient></defs>'
+        f'<path d="M32 2 C36 18 46 24 62 32 C46 36 40 46 32 62 C28 46 18 40 2 32 C18 28 24 18 32 2 Z" fill="url(#iceBlade)" stroke="#E0F2FE" stroke-width="1.5"/>'
+        f'<circle cx="32" cy="32" r="7" fill="#090D16" stroke="#BAE6FD" stroke-width="2"/>'
+        f'</svg>'
+    )
+
+SHURIKEN_ICON_MAIN = get_shuriken_icon_html(28)
+SHURIKEN_ICON_SM = get_shuriken_icon_html(16)
+
+# =====================================================================
+# CSSスタイル (インデントなしで記述)
+# =====================================================================
+st.markdown("""<style>
+:root {
+    --ice-white: #F0F9FF;
+    --ice-cyan: #BAE6FD;
+    --accent-blue: #38BDF8;
+    --bg-dark: #090D16;
+    --bg-card: #0F172A;
+    --border-muted: #1E293B;
+}
+header[data-testid="stHeader"] {
+    height: 1.8rem !important;
+    background: transparent !important;
+}
+.block-container {
+    padding-top: 1.2rem !important;
+    padding-bottom: 0.8rem !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+}
+.brand-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0 10px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #1E293B;
+}
+.brand-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #F8FAFC;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+.brand-sub {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #BAE6FD;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(186, 230, 253, 0.35);
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+.stButton button {
+    background-color: #0F172A !important;
+    color: #94A3B8 !important;
+    border: 1px solid #1E293B !important;
+    border-bottom: 2px solid #1E293B !important;
+    font-weight: 600 !important;
+    padding: 6px 10px !important;
+    border-radius: 6px 6px 2px 2px !important;
+    font-size: 0.86rem !important;
+    transition: all 0.15s ease !important;
+}
+.stButton button:hover {
+    background-color: #1E293B !important;
+    color: #F0F9FF !important;
+    border-color: #334155 !important;
+}
+.stButton button[kind="primary"],
+.stButton button[data-testid="baseButton-primary"] {
+    background-color: #172554 !important;
+    color: #F0F9FF !important;
+    border-color: #1E3A8A !important;
+    border-bottom: 2.5px solid #BAE6FD !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15) !important;
+}
+div[data-testid="stAudioInput"] {
+    background: #0F172A;
+    border: 1px solid #1E293B;
+    border-radius: 8px;
+    padding: 4px 12px;
+    margin-bottom: 0.4rem;
+}
+div[data-testid="stTextArea"] textarea {
+    background-color: #090D16 !important;
+    color: #F8FAFC !important;
+    border: 1px solid #1E293B !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    border-radius: 6px !important;
+    line-height: 1.5 !important;
+}
+.sec-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #F0F9FF;
+    margin-bottom: 8px;
+}
+</style>""", unsafe_allow_html=True)
+
+# =====================================================================
+# ベンチマーク定義
 # =====================================================================
 E2_PASSAGE_BENCHMARKS = {
-    # --- 短文フォーカス・ドリル (S1〜S3: X軸は %V) ---
     "S1_stress": {
         "category": "drill",
         "x_metric": "pct_v",
-        "title": "短文ドリル 1: Alternating Stress & Reduction (語彙強弱拍)",
+        "title": "短文ドリル 1: 語彙強弱拍 (Alternating Stress & Reduction)",
         "target_text": "A photograph of a famous photographer was taken in the station.",
-        "phonetics_desc": "photograph /ˈfoʊ.tə.ɡræf/ と photographer /fəˈtɑː.ɡrə.fɚ/ の強弱母音コントラストを測定。弱母音(/ə/)の鋭い短縮が不可欠です。",
+        "phonetics_desc": "photograph と photographer の強弱母音コントラストを測定。弱母音(/ə/)の鋭い短縮が不可欠です。",
         "mu": np.array([47.01, 58.61]),
-        "cov": np.array([[1.045, 3.120], [3.120, 39.810]]),
-        "x_range": (42.0, 58.0),
+        "cov": np.array([[1.45, 3.12], [3.12, 45.0]]),
+        "x_range": (41.0, 58.0),
         "y_range": (35.0, 110.0),
         "ref_audio": "benchmarks/S1_stress/UK-Native/UK-Native_01_ArcherConver_male.wav",
         "bm_csv": "benchmarks/benchmark_results_all.csv"
@@ -114,11 +168,11 @@ E2_PASSAGE_BENCHMARKS = {
     "S2_clusters": {
         "category": "drill",
         "x_metric": "pct_v",
-        "title": "短文ドリル 2: Consonant Clusters & Coda Holding (子音連結保持)",
+        "title": "短文ドリル 2: 子音連結保持 (Consonant Clusters)",
         "target_text": "Strict instructors asked complex questions about the project tests.",
-        "phonetics_desc": "/str/, /mpl/, /sts/ などの連続子音に余計な母音([ɯ], [o])を挟まずに子音を保持できるかを診断。ネイティブは %V が 36% 付近まで急激に低下します。",
+        "phonetics_desc": "連続子音に不要な母音を挟まずに子音を保持できるかを診断します。",
         "mu": np.array([35.85, 59.12]),
-        "cov": np.array([[1.380, 2.850], [2.850, 48.200]]),
+        "cov": np.array([[1.80, 2.85], [2.85, 52.0]]),
         "x_range": (30.0, 46.0),
         "y_range": (35.0, 120.0),
         "ref_audio": "benchmarks/S2_clusters/US-Native/US-Native_01_RogerLaidBac_male.wav",
@@ -127,33 +181,31 @@ E2_PASSAGE_BENCHMARKS = {
     "S3_connected": {
         "category": "drill",
         "x_metric": "pct_v",
-        "title": "短文ドリル 3: Connected Speech & Function Word Weakening (機能語弱化)",
+        "title": "短文ドリル 3: 機能語弱化 (Connected Speech Weakening)",
         "target_text": "Can you give him a cup of water from the kitchen at lunch?",
-        "phonetics_desc": "can, him, a, of, from, at などの機能語を極小化し、息の流れに乗せるテスト。全単語を等時拍で読むと Schwa P75 が 80ms を突破します。",
+        "phonetics_desc": "機能語を極小化し、息の流れに乗せるテストです。",
         "mu": np.array([45.42, 45.18]),
-        "cov": np.array([[1.150, 1.950], [1.950, 36.400]]),
+        "cov": np.array([[1.60, 1.95], [1.95, 42.0]]),
         "x_range": (38.0, 54.0),
         "y_range": (30.0, 140.0),
         "ref_audio": "benchmarks/S3_connected/UK-Native/UK-Native_01_ArcherConver_male.wav",
         "bm_csv": "benchmarks/benchmark_results_all.csv"
     },
-    # --- 総合アセスメント長文 (P1: X軸は ポーズ非感受性の R_CF) ---
     "P1_northwind": {
         "category": "passage",
         "x_metric": "rcf",
-        "title": "総合アセスメント 1: The North Wind and the Sun (北風と太陽・全文113語)",
+        "title": "総合アセスメント 1: 北風と太陽 (The North Wind and the Sun 全文113語)",
         "target_text": "The North Wind and the Sun were disputing which was the stronger, when a traveler came along wrapped in a warm cloak. They agreed that the one who first succeeded in making the traveler take his cloak off should be considered stronger than the other. Then the North Wind blew with all his might, but the more he blew, the more closely did the traveler fold his cloak around him, and at last the North Wind gave up the attempt. Then the Sun shone out warmly, and immediately the traveler took off his cloak. And so the North Wind was obliged to confess that the Sun was the stronger of the two.",
-        "phonetics_desc": "国際音声学会(IPA)正準テキスト。ポーズ非感受性の2D軸 (R_CF × Schwa P75) により、不自然な間や言い淀みに惑わされず真のストレス拍を診断します。",
+        "phonetics_desc": "ポーズ非感受性の2D軸 (内容語/機能語母音比 R_CF × 弱母音持続時間 Schwa P75) により、客観的なストレス拍を評価します。",
         "mu": np.array([1.45, 52.26]),
-        "cov": np.array([[0.004, -0.158], [-0.158, 11.238]]),
-        "x_range": (0.7, 1.8),
+        "cov": np.array([[0.0068, -0.165], [-0.165, 16.50]]),
+        "x_range": (0.7, 1.85),
         "y_range": (35.0, 105.0),
         "ref_audio": "benchmarks/P1_northwind/UK-Native/UK-Native_01_Archer.wav",
         "bm_csv": "benchmarks/P1_northwind/northwind_benchmark_results.csv"
     }
 }
 
-# 冠詞(the, a, an)を除外した、真の判別リトマス機能語リスト
 DIAGNOSTIC_FUNCTION_WORDS = {
     "to", "for", "at", "of", "in", "from", "with", "into", "through", "about",
     "and", "that", "than", "but", "as", "if", "or", "so",
@@ -161,75 +213,67 @@ DIAGNOSTIC_FUNCTION_WORDS = {
 }
 
 ALL_FUNCTION_WORDS = {
-    "a", "an", "the",
-    "in", "on", "at", "to", "for", "of", "from", "with", "by", "about", "as", "into", "like", "through", "after", "over", "between", "out", "against", "during", "without", "before", "under", "around", "among",
-    "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their", "mine", "yours", "hers", "ours", "theirs", "myself", "yourself", "himself", "herself", "itself", "ourselves", "themselves",
-    "this", "that", "these", "those", "who", "whom", "whose", "which", "what", "where", "when", "why", "how",
-    "am", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "having", "do", "does", "did",
-    "will", "would", "shall", "should", "can", "could", "may", "might", "must",
-    "and", "but", "or", "nor", "so", "yet", "if", "because", "although", "though", "while", "since", "unless", "until", "whether",
-    "there", "here", "some", "any", "no", "not", "too", "very", "just", "than", "off", "along"
+    "a", "an", "the", "in", "on", "at", "to", "for", "of", "from", "with", "by", "about", "as",
+    "into", "like", "through", "after", "over", "between", "out", "against", "during", "without",
+    "before", "under", "around", "among", "i", "you", "he", "she", "it", "we", "they", "me", "him",
+    "her", "us", "them", "my", "your", "his", "its", "our", "their", "this", "that", "these",
+    "those", "who", "whom", "whose", "which", "what", "where", "when", "why", "how", "am", "is",
+    "are", "was", "were", "be", "been", "being", "have", "has", "had", "will", "would", "shall",
+    "should", "can", "could", "may", "might", "must", "and", "but", "or", "so", "than", "off", "along"
 }
 
 VOWEL_SET = {"AA", "AE", "AH", "AO", "AW", "AY", "EH", "ER", "EY", "IH", "IY", "OW", "OY", "UH", "UW"}
 
-# --- セッション状態の初期化 ---
+# --- セッション状態 ---
 if "app_mode" not in st.session_state:
-    st.session_state.app_mode = "RL"
+    st.session_state.app_mode = "RHYTHM"
 if "current_label" not in st.session_state:
     st.session_state.current_label = "お手本: Right (US)"
 if "current_audio_bytes" not in st.session_state:
     init_path = os.path.join("presets", "right_us.wav")
-    if os.path.exists(init_path):
-        with open(init_path, "rb") as f:
-            st.session_state.current_audio_bytes = f.read()
-    else:
-        st.session_state.current_audio_bytes = None
+    st.session_state.current_audio_bytes = open(init_path, "rb").read() if os.path.exists(init_path) else None
 if "last_recorded_bytes" not in st.session_state:
     st.session_state.last_recorded_bytes = None
 if "auto_play" not in st.session_state:
     st.session_state.auto_play = False
 
-# E2 セッション状態
 if "e2_category" not in st.session_state:
-    st.session_state.e2_category = "drill"
+    st.session_state.e2_category = "passage"
 if "e2_selected_passage" not in st.session_state:
-    st.session_state.e2_selected_passage = "S1_stress"
+    st.session_state.e2_selected_passage = "P1_northwind"
 if "e2_custom_text" not in st.session_state:
-    st.session_state.e2_custom_text = E2_PASSAGE_BENCHMARKS["S1_stress"]["target_text"]
+    st.session_state.e2_custom_text = E2_PASSAGE_BENCHMARKS["P1_northwind"]["target_text"]
 if "e2_last_analyzed_text" not in st.session_state:
     st.session_state.e2_last_analyzed_text = st.session_state.e2_custom_text
 if "e2_audio_bytes" not in st.session_state:
     st.session_state.e2_audio_bytes = None
 if "e2_eval_history" not in st.session_state:
     st.session_state.e2_eval_history = []
+if "e2_plot_view" not in st.session_state:
+    st.session_state.e2_plot_view = "scatter2d"
 
-# --- 最上段ヘッダー & モード切替ボタン ---
-head_col1, head_col2, head_col3 = st.columns([2.0, 1.2, 1.2], vertical_alignment="center")
-with head_col1:
-    st.title("NinjaPhonetics: Biofeedback Scope")
-with head_col2:
-    if st.button(
-        "A1: R / L スコープ",
-        type="primary" if st.session_state.app_mode == "RL" else "secondary",
-        use_container_width=True
-    ):
+# =====================================================================
+# 最上段ブランドヘッダー (インデントなしでレンダリング)
+# =====================================================================
+brand_header_html = (
+    f'<div class="brand-bar">'
+    f'{SHURIKEN_ICON_MAIN}'
+    f'<span class="brand-title">NinjaPhonetics: Biofeedback Scope</span>'
+    f'<span class="brand-sub">ACOUSTIC & PROSODY DIAGNOSTICS</span>'
+    f'</div>'
+)
+st.markdown(brand_header_html, unsafe_allow_html=True)
+
+tab_m1, tab_m2, _ = st.columns([1.5, 1.5, 3.0])
+with tab_m1:
+    if st.button("A1: 音素ホルマント・スコープ (R / L)", type="primary" if st.session_state.app_mode == "RL" else "secondary", use_container_width=True):
         st.session_state.app_mode = "RL"
         st.rerun()
-with head_col3:
-    if st.button(
-        "E2: 3大プロソディ診断",
-        type="primary" if st.session_state.app_mode == "RHYTHM" else "secondary",
-        use_container_width=True
-    ):
+with tab_m2:
+    if st.button("E2: プロソディ＆ストレス拍診断", type="primary" if st.session_state.app_mode == "RHYTHM" else "secondary", use_container_width=True):
         st.session_state.app_mode = "RHYTHM"
         st.rerun()
 
-
-# =====================================================================
-# 共通ユーティリティ: 音声バイト列のデコード
-# =====================================================================
 def decode_audio_bytes(audio_bytes: bytes):
     try:
         data, sr = sf.read(io.BytesIO(audio_bytes))
@@ -241,14 +285,12 @@ def decode_audio_bytes(audio_bytes: bytes):
         data = np.array(raw).astype(np.float32) / (1 << (seg.sample_width * 8 - 1))
         if seg.channels > 1:
             data = data.reshape((-1, seg.channels))
-
     if data.ndim > 1:
         data = np.mean(data, axis=1)
     return data, sr
 
-
 # =====================================================================
-# MODE 1: R / L ホルマントスコープ (A1)
+# MODE 1: A1 スコープ関連
 # =====================================================================
 PRESET_DIR = "presets"
 PRESETS = [
@@ -331,37 +373,30 @@ def build_spike2_html(data: dict, auto_play: bool = False, export_name: str = "s
     data["auto_play"] = auto_play
     data["export_name"] = export_name
     data_json = json.dumps(data)
-    return f"""
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-  body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
-  .toolbar {{ display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
-  button {{ font-family: inherit; font-size: 14px; font-weight: bold; padding: 8px 14px; border-radius: 6px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; white-space: nowrap; }}
-  button:hover {{ background: #334155; color: #FFFFFF; }}
-  button.btn-play-ready {{ background: #16A34A; color: #FFFFFF; border-color: #15803D; }}
-  button.btn-play-ready:hover {{ background: #15803D; }}
-  button.btn-play-active {{ background: #DC2626; color: #FFFFFF; border-color: #B91C1C; }}
-  button.toggle-active {{ background: #334155; color: #F8FAFC; border-color: #64748B; }}
-  select {{ font-family: inherit; font-size: 14px; padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; background: #1E293B; color: #E2E8F0; font-weight: bold; }}
-  .readout {{ font-family: inherit; font-size: 14px; font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; color: #E2E8F0; white-space: nowrap; }}
-  #scope-wrapper {{ position: relative; width: 100%; height: 580px; border: 1px solid #1E293B; border-top: none; background: #090D16; }}
-  canvas {{ position: absolute; left: 0; top: 0; width: 100%; height: 100%; }}
-  #overlay-canvas {{ mix-blend-mode: screen; }}
-</style>
-</head>
-<body>
+    return f"""<!DOCTYPE html><html><head><style>
+body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
+.toolbar {{ display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
+button {{ font-family: inherit; font-size: 13px; font-weight: bold; padding: 7px 13px; border-radius: 6px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; white-space: nowrap; }}
+button:hover {{ background: #334155; color: #FFFFFF; }}
+button.btn-play-ready {{ background: #16A34A; color: #FFFFFF; border-color: #15803D; }}
+button.btn-play-Active {{ background: #DC2626; color: #FFFFFF; border-color: #B91C1C; }}
+button.toggle-active {{ background: #334155; color: #F8FAFC; border-color: #64748B; }}
+select {{ font-family: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px; border: 1px solid #334155; background: #1E293B; color: #E2E8F0; font-weight: bold; }}
+.readout {{ font-family: inherit; font-size: 13px; font-weight: 500; margin-left: auto; font-variant-numeric: tabular-nums; color: #E2E8F0; white-space: nowrap; }}
+#scope-wrapper {{ position: relative; width: 100%; height: 560px; border: 1px solid #1E293B; border-top: none; background: #090D16; }}
+canvas {{ position: absolute; left: 0; top: 0; width: 100%; height: 100%; }}
+#overlay-canvas {{ mix-blend-mode: screen; }}
+</style></head><body>
 <div class="toolbar">
-  <button id="btn-play" class="btn-play-ready">▶ Play (Space)</button>
-  <button id="btn-reset">⏮ 全体選択</button>
+  <button id="btn-play" class="btn-play-ready">Play (Space)</button>
+  <button id="btn-reset">全体選択</button>
   <button id="btn-spec" class="toggle-active">Spectrogram: ON</button>
-  <label style="font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; color: #94A3B8;">
+  <label style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; color: #94A3B8;">
     Speed:
     <select id="sel-rate"><option value="1.0">1.0x</option><option value="0.7">0.7x</option><option value="0.5">0.5x</option></select>
   </label>
-  <button id="btn-dl-plot">💾 Plot (.png)</button>
-  <button id="btn-dl-audio">🔊 Audio (.wav)</button>
+  <button id="btn-dl-plot">Plot (.png)</button>
+  <button id="btn-dl-audio">Audio (.wav)</button>
   <div class="readout" id="time-readout">Cursor: 0.000 s</div>
 </div>
 <div id="scope-wrapper">
@@ -375,7 +410,6 @@ const bgCanvas = document.getElementById('bg-canvas');
 const ovCanvas = document.getElementById('overlay-canvas');
 const bgCtx = bgCanvas.getContext('2d');
 const ovCtx = ovCanvas.getContext('2d');
-
 const btnPlay = document.getElementById('btn-play');
 const btnReset = document.getElementById('btn-reset');
 const btnSpec = document.getElementById('btn-spec');
@@ -383,14 +417,12 @@ const btnDlPlot = document.getElementById('btn-dl-plot');
 const btnDlAudio = document.getElementById('btn-dl-audio');
 const selRate = document.getElementById('sel-rate');
 const readout = document.getElementById('time-readout');
-
 const MARGIN = {{ left: 110, right: 30, top: 20, bottom: 45 }};
-let W = 1000, H = 580;
+let W = 1000, H = 560;
 let xMin = D.x_min, xMax = D.x_max;
 let selStart = xMin, selEnd = xMax;
 let cursorT = (xMin + xMax) / 2;
 let showSpec = true;
-
 let specCanvas = null;
 if (D.spec_w > 0 && D.spec_h > 0 && D.spec_b64) {{
   specCanvas = document.createElement('canvas');
@@ -406,12 +438,10 @@ if (D.spec_w > 0 && D.spec_h > 0 && D.spec_b64) {{
   }}
   sCtx.putImageData(imgData, 0, 0);
 }}
-
 let audioEl = new Audio();
 let audioBlobUrl = null;
 let isPlaying = false;
 let animId = null;
-
 function initAudio() {{
   const binary = atob(D.wav_b64);
   const bytes = new Uint8Array(binary.length);
@@ -419,16 +449,14 @@ function initAudio() {{
   const blob = new Blob([bytes], {{ type: "audio/wav" }});
   audioBlobUrl = URL.createObjectURL(blob);
   audioEl.src = audioBlobUrl;
-  audioEl.preservesPitch = true; audioEl.mozPreservesPitch = true; audioEl.webkitPreservesPitch = true;
+  audioEl.preservesPitch = true;
 }}
 initAudio();
-
 function tToX(t) {{ return MARGIN.left + ((t - xMin) / (xMax - xMin)) * (W - MARGIN.left - MARGIN.right); }}
 function xToT(x) {{ return Math.max(xMin, Math.min(xMax, xMin + ((x - MARGIN.left) / (W - MARGIN.left - MARGIN.right)) * (xMax - xMin))); }}
-
 function getPanels() {{
   const totalH = H - MARGIN.top - MARGIN.bottom;
-  const gap = 24, h1 = 120;
+  const gap = 24, h1 = 115;
   const remainH = totalH - h1 - (gap * 2);
   const h2 = remainH * 0.50, h3 = remainH * 0.50;
   return [
@@ -438,7 +466,6 @@ function getPanels() {{
   ];
 }}
 function valToY(val, vMin, vMax, panel) {{ return panel.bottom - ((val - vMin) / (vMax - vMin)) * panel.height; }}
-
 function drawBackground() {{
   const dpr = window.devicePixelRatio || 1;
   W = wrapper.clientWidth; H = wrapper.clientHeight;
@@ -446,22 +473,18 @@ function drawBackground() {{
   ovCanvas.width = W * dpr; ovCanvas.height = H * dpr;
   bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ovCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
   bgCtx.fillStyle = "#090D16"; bgCtx.fillRect(0, 0, W, H);
   const panels = getPanels();
   const plotW = W - MARGIN.left - MARGIN.right;
   const p1 = panels[0], p2 = panels[1], p3 = panels[2];
-
   if (showSpec && specCanvas) {{
     bgCtx.save();
     bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
     bgCtx.drawImage(specCanvas, MARGIN.left, p2.top, plotW, p2.height);
     bgCtx.restore();
   }}
-
   const stepT = (xMax - xMin) <= 0.6 ? 0.05 : ((xMax - xMin) <= 1.5 ? 0.1 : 0.2);
   const firstTick = Math.ceil(xMin / stepT) * stepT;
-
   panels.forEach((p) => {{
     for (let t = firstTick; t <= xMax + 1e-6; t += stepT) {{
       const x = tToX(t);
@@ -471,7 +494,6 @@ function drawBackground() {{
       bgCtx.fillText(t.toFixed(2), x, p.bottom + 14);
     }}
   }});
-
   const maxAmp = Math.max(...D.wave_y.map(Math.abs), 0.05);
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p1.top, plotW, p1.height); bgCtx.clip();
@@ -481,38 +503,32 @@ function drawBackground() {{
     if (i === 0) bgCtx.moveTo(x, y); else bgCtx.lineTo(x, y);
   }}
   bgCtx.stroke(); bgCtx.restore();
-
   const fMin = 500, fMax = 4000;
   [1000, 2000, 3000, 4000].forEach(hz => {{
     const y = valToY(hz, fMin, fMax, p2);
     bgCtx.strokeStyle = "rgba(148, 163, 184, 0.14)"; bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, y); bgCtx.lineTo(W - MARGIN.right, y); bgCtx.stroke();
     bgCtx.fillStyle = "#94A3B8"; bgCtx.font = "12px sans-serif"; bgCtx.textAlign = "right"; bgCtx.fillText(hz.toString(), MARGIN.left - 8, y + 4);
   }});
-
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p2.top, plotW, p2.height); bgCtx.clip();
   drawSeries(D.times, D.f3, fMin, fMax, p2, "#38BDF8", 3.0);
   drawSeries(D.times, D.f2, fMin, fMax, p2, "#10B981", 3.0);
   bgCtx.restore();
-
   const dMin = 0, dMax = 2500;
   const yTarget = valToY(1000, dMin, dMax, p3);
   const yZero = valToY(0, dMin, dMax, p3);
   bgCtx.fillStyle = "rgba(239, 68, 68, 0.08)"; bgCtx.fillRect(MARGIN.left, yTarget, plotW, yZero - yTarget);
   bgCtx.strokeStyle = "rgba(239, 68, 68, 0.65)"; bgCtx.lineWidth = 1.5; bgCtx.setLineDash([6, 5]);
   bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, yTarget); bgCtx.lineTo(W - MARGIN.right, yTarget); bgCtx.stroke(); bgCtx.setLineDash([]);
-
   bgCtx.save();
   bgCtx.beginPath(); bgCtx.rect(MARGIN.left, p3.top, plotW, p3.height); bgCtx.clip();
   drawSeries(D.times, D.delta, dMin, dMax, p3, "#F59E0B", 3.2);
   bgCtx.restore();
-
   panels.forEach(p => {{
     bgCtx.strokeStyle = "#334155"; bgCtx.lineWidth = 1.5;
     bgCtx.beginPath(); bgCtx.moveTo(MARGIN.left, p.top); bgCtx.lineTo(MARGIN.left, p.bottom); bgCtx.lineTo(W - MARGIN.right, p.bottom); bgCtx.stroke();
   }});
 }}
-
 function drawSeries(times, values, vMin, vMax, panel, color, width) {{
   bgCtx.strokeStyle = color; bgCtx.lineWidth = width; bgCtx.lineJoin = "round"; bgCtx.beginPath();
   let penDown = false;
@@ -524,7 +540,6 @@ function drawSeries(times, values, vMin, vMax, panel, color, width) {{
   }}
   bgCtx.stroke();
 }}
-
 function drawOverlay() {{
   ovCtx.clearRect(0, 0, W, H);
   const panels = getPanels();
@@ -538,7 +553,6 @@ function drawOverlay() {{
   const cx = tToX(cursorT);
   ovCtx.strokeStyle = "#EF4444"; ovCtx.lineWidth = 2.0;
   ovCtx.beginPath(); ovCtx.moveTo(cx, topY); ovCtx.lineTo(cx, botY); ovCtx.stroke();
-
   let idx = D.times.findIndex(t => t >= cursorT);
   let html = `<span style="color:#94A3B8;">Cursor:</span> ${{cursorT.toFixed(3)}} s`;
   if (idx !== -1 && D.delta[idx] !== null) {{
@@ -546,29 +560,26 @@ function drawOverlay() {{
   }}
   readout.innerHTML = html;
 }}
-
 btnSpec.addEventListener("click", () => {{
   showSpec = !showSpec;
   btnSpec.textContent = showSpec ? "Spectrogram: ON" : "Spectrogram: OFF";
   btnSpec.classList.toggle("toggle-active", showSpec);
   drawBackground();
 }});
-
 function startPlayback() {{
   if (!audioEl.src) return; stopPlayback();
   audioEl.playbackRate = parseFloat(selRate.value);
-  audioEl.preservesPitch = true; audioEl.mozPreservesPitch = true; audioEl.webkitPreservesPitch = true;
+  audioEl.preservesPitch = true;
   const s = Math.min(selStart, selEnd), e = Math.max(selStart, selEnd);
   audioEl.currentTime = (cursorT >= s && cursorT < e - 0.02) ? cursorT : s;
-  isPlaying = true; btnPlay.textContent = "⏹ Stop (Space)"; btnPlay.className = "btn-play-active";
+  isPlaying = true; btnPlay.textContent = "Stop (Space)"; btnPlay.className = "btn-play-Active";
   audioEl.play().catch(() => stopPlayback());
-
   function tick() {{
     if (!isPlaying) return;
     cursorT = audioEl.currentTime;
     if (cursorT >= e || audioEl.ended) {{
       audioEl.pause(); isPlaying = false; cursorT = e;
-      btnPlay.textContent = "▶ Play (Space)"; btnPlay.className = "btn-play-ready";
+      btnPlay.textContent = "Play (Space)"; btnPlay.className = "btn-play-ready";
       drawOverlay(); return;
     }}
     drawOverlay(); animId = requestAnimationFrame(tick);
@@ -577,7 +588,7 @@ function startPlayback() {{
 }}
 function stopPlayback() {{
   audioEl.pause(); if (animId) cancelAnimationFrame(animId);
-  isPlaying = false; btnPlay.textContent = "▶ Play (Space)"; btnPlay.className = "btn-play-ready";
+  isPlaying = false; btnPlay.textContent = "Play (Space)"; btnPlay.className = "btn-play-ready";
 }}
 selRate.addEventListener("change", () => {{ audioEl.playbackRate = parseFloat(selRate.value); audioEl.preservesPitch = true; }});
 btnPlay.addEventListener("click", () => isPlaying ? stopPlayback() : startPlayback());
@@ -597,7 +608,6 @@ btnDlAudio.addEventListener("click", () => {{
 window.addEventListener("keydown", (e) => {{
   if (e.code === "Space" && e.target === document.body) {{ e.preventDefault(); isPlaying ? stopPlayback() : startPlayback(); }}
 }});
-
 let dragMode = "none";
 ovCanvas.addEventListener("mousemove", (e) => {{
   const rect = ovCanvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left;
@@ -617,13 +627,10 @@ window.addEventListener("mouseup", () => {{
 window.addEventListener("resize", () => {{ drawBackground(); drawOverlay(); }});
 drawBackground(); drawOverlay();
 if (D.auto_play) setTimeout(() => {{ cursorT = xMin; startPlayback(); }}, 600);
-</script>
-</body>
-</html>
-"""
+</script></body></html>"""
 
 # =====================================================================
-# MODE 2: E2 プロソディ診断エンジン (ドリル & 総合アセスメント)
+# MODE 2: E2 ベンチマーク読み込み (高速キャッシュ利用)
 # =====================================================================
 def load_benchmark_points(bm_csv_path: str, task_key: str):
     if not os.path.exists(bm_csv_path):
@@ -645,14 +652,35 @@ def load_benchmark_points(bm_csv_path: str, task_key: str):
         p_v = float(row.get("pct_v", 40.0))
         r_cf_val = float(row.get("rcf", 1.35))
         s_u = float(row.get("schwa_p75_ms", row.get("schwa_p75", 60.0)))
+        npvi_val = float(row.get("npvi", row.get("npvi_clipped", 50.0)))
         pts.append({
             "pct_v": p_v,
             "rcf": r_cf_val,
             "schwa_p75_ms": s_u,
+            "npvi": npvi_val,
             "color": col,
             "cohort": c_name
         })
     return pts
+
+def get_benchmark_word_raw_distributions(passage_key: str):
+    """キャッシュCSVのみ読み込み、重い再解析を回避"""
+    cache_csv = f"benchmarks/{passage_key}/word_raw_cache.csv"
+    if not os.path.exists(cache_csv):
+        return {}
+    df_w = pd.read_csv(cache_csv)
+    dist_dict = {}
+    for w_name, grp in df_w.groupby("word"):
+        us_pts = grp[grp["cohort"] == "US-Native"]["v_ms"].tolist()
+        uk_pts = grp[grp["cohort"] == "UK-Native"]["v_ms"].tolist()
+        mora_pts = grp[grp["cohort"] == "JP-Mora-Forced"]["v_ms"].tolist()
+        dist_dict[w_name] = {
+            "us": us_pts,
+            "uk": uk_pts,
+            "native": us_pts + uk_pts,
+            "mora": mora_pts
+        }
+    return dist_dict
 
 def compute_content_function_metrics(w_aligns, phones):
     word_breakdown = []
@@ -667,8 +695,8 @@ def compute_content_function_metrics(w_aligns, phones):
             continue
         is_func = clean_w in ALL_FUNCTION_WORDS
         is_diag = clean_w in DIAGNOSTIC_FUNCTION_WORDS
-        w_start = w.get("start", 0.0)
-        w_end = w.get("end", 0.0)
+        w_start = float(w.get("start", 0.0))
+        w_end = float(w.get("end", 0.0))
         w_dur_ms = max(0.0, (w_end - w_start) * 1000.0)
 
         w_vowels = [
@@ -699,6 +727,8 @@ def compute_content_function_metrics(w_aligns, phones):
             "clean_word": clean_w,
             "is_func": is_func,
             "is_diag": is_diag,
+            "start": round(w_start, 3),
+            "end": round(w_end, 3),
             "dur_ms": round(w_dur_ms, 1),
             "vowel_ms": round(float(np.mean(v_durs)) if v_durs else w_dur_ms * 0.45, 1)
         })
@@ -742,31 +772,31 @@ def evaluate_user_rhythm(audio_path: str, passage_key: str, custom_text: str):
         diff = user_pt - mu
         d_m_sq = round(float(diff.T @ inv_cov @ diff), 2)
 
-        is_strike = (d_m_sq <= 5.991) or (cond_schwa and cond_diag and cond_rcf)
-        is_bullseye = (d_m_sq <= 1.5) and (diag_median_ms <= 45.0)
+        is_strike = (d_m_sq <= 9.21) or (cond_schwa and cond_diag and cond_rcf)
+        is_bullseye = (d_m_sq <= 2.0) and (diag_median_ms <= 45.0)
 
         if is_bullseye:
             verdict = "PERFECT STRIKE"
             status_color = "#38BDF8"
-            feedback = f"理想的なストレス拍！弱母音({schwa_p75:.1f}ms)と重要機能語({diag_median_ms:.1f}ms)が完璧に小粒化されています。"
+            feedback = f"理想的なストレス拍です。弱母音({schwa_p75:.1f}ms)と弱化必須語({diag_median_ms:.1f}ms)がネイティブ重心に完全一致しています。"
         elif is_strike:
             verdict = "NATIVE STRIKE"
             status_color = "#10B981"
-            feedback = f"ネイティブ許容ゾーンに合格！(V_diag={diag_median_ms:.1f}ms, R_CF={r_cf}x, Schwa={schwa_p75:.1f}ms)。"
+            feedback = f"ネイティブ許容ストライクゾーンに合格しています (V_diag={diag_median_ms:.1f}ms, R_CF={r_cf}x, Schwa={schwa_p75:.1f}ms)。"
         else:
             status_color = "#EF4444"
             if diag_median_ms > 55.0 or schwa_p75 > 70.0:
                 verdict = "MORA TRAP (機能語伸び)"
-                feedback = f"弱化必須語の中央値が {diag_median_ms:.0f}ms (目標 ≤45ms) と長めです。下の表で赤・黄色の機能語を一瞬で通過してください。"
+                feedback = f"弱化必須語の中央値が {diag_median_ms:.0f}ms (目標 ≤45ms) と長めです。機能語を一瞬で通過してください。"
             elif x_metric == "rcf" and r_cf < 1.30:
-                verdict = "LOW CONTRAST (メリハリ不足)"
-                feedback = f"機能語圧縮比 R_CF が {r_cf}x (目標 ≥1.30x) です。内容語をもっと豊かに伸ばし、機能語を縮めてください。"
+                verdict = "LOW CONTRAST (強弱不足)"
+                feedback = f"内容語/機能語母音比 R_CF が {r_cf}x (目標 ≥1.30x) です。内容語を伸ばし機能語を縮めてください。"
             elif x_metric == "pct_v" and pct_v > mu[0] + 3.5:
                 verdict = "VOWEL HEAVY (不要母音)"
-                feedback = f"母音占有率(%V)が +{pct_v - mu[0]:.1f}% 高すぎます。子音部への母音挿入に注意してください。"
+                feedback = f"母音占有率(%V)が +{pct_v - mu[0]:.1f}% 高めです。子音部への母音挿入に注意してください。"
             else:
                 verdict = "OFF TARGET (あと一歩)"
-                feedback = f"楕円まであと一歩です (D_M²={d_m_sq})。重要機能語 (現在 {diag_median_ms:.0f}ms) を 45ms 以下へ短縮しましょう。"
+                feedback = f"ストライクゾーンまであと一歩です (D_M²={d_m_sq})。弱化必須語 (現在 {diag_median_ms:.0f}ms) を 45ms 以下へ短縮しましょう。"
     else:
         d_m_sq = None
         if cond_schwa and cond_diag and cond_rcf:
@@ -774,13 +804,13 @@ def evaluate_user_rhythm(audio_path: str, passage_key: str, custom_text: str):
             status_color = "#10B981"
             is_strike = True
             is_bullseye = (diag_median_ms <= 42.0 and r_cf >= 1.50)
-            feedback = f"自由文で理想的なストレス拍！(V_diag = {diag_median_ms:.1f}ms, R_CF = {r_cf}x, nPVI = {npvi:.1f})"
+            feedback = f"自由文で理想的なストレス拍です (V_diag = {diag_median_ms:.1f}ms, R_CF = {r_cf}x, nPVI = {npvi:.1f})。"
         elif schwa_p75 <= 75.0 and diag_median_ms <= 60.0:
             verdict = "PASSABLE RHYTHM (惜しい)"
             status_color = "#F59E0B"
             is_strike = False
             is_bullseye = False
-            feedback = f"リズム骨格は良好ですが、機能語(現在 {diag_median_ms:.0f}ms)をもう一段短く(目標 ≤45ms)できます。"
+            feedback = f"リズム骨格は良好ですが、弱化必須語(現在 {diag_median_ms:.0f}ms)をもう一段短く(目標 ≤45ms)できます。"
         else:
             verdict = "MORA RHYTHM (等時拍傾向)"
             status_color = "#EF4444"
@@ -806,7 +836,10 @@ def evaluate_user_rhythm(audio_path: str, passage_key: str, custom_text: str):
         "word_breakdown": word_breakdown
     }
 
-def build_e2_radar_html(passage_key: str, eval_history: list = None, is_custom_mode: bool = False) -> str:
+# =====================================================================
+# Canvas描画生成 (HTML)
+# =====================================================================
+def build_e2_multiview_canvas_html(passage_key: str, eval_history: list = None, is_custom_mode: bool = False, view_mode: str = "scatter2d", word_bench_dist: dict = None) -> str:
     bm = E2_PASSAGE_BENCHMARKS[passage_key]
     x_metric = bm.get("x_metric", "pct_v")
     mu = bm["mu"]
@@ -815,10 +848,10 @@ def build_e2_radar_html(passage_key: str, eval_history: list = None, is_custom_m
     vals, vecs = np.linalg.eigh(cov)
     order = vals.argsort()[::-1]
     vals, vecs = vals[order], vecs[:, order]
-    
-    n_std_95 = 2.447
-    v1_95 = vecs[:, 0] * (n_std_95 * np.sqrt(max(vals[0], 0)))
-    v2_95 = vecs[:, 1] * (n_std_95 * np.sqrt(max(vals[1], 0)))
+
+    n_std_zone = 3.035
+    v1_95 = vecs[:, 0] * (n_std_zone * np.sqrt(max(vals[0], 0)))
+    v2_95 = vecs[:, 1] * (n_std_zone * np.sqrt(max(vals[1], 0)))
 
     n_std_ci = 2.447 / np.sqrt(12)
     v1_ci = vecs[:, 0] * (n_std_ci * np.sqrt(max(vals[0], 0)))
@@ -834,8 +867,19 @@ def build_e2_radar_html(passage_key: str, eval_history: list = None, is_custom_m
         x_min, x_max = bm["x_range"][0], bm["x_range"][1]
         y_min, y_max = bm["y_range"][0], bm["y_range"][1]
 
+    user_word_raw = {}
+    if history_list:
+        for ev in history_list:
+            for wb in ev.get("word_breakdown", []):
+                if wb.get("is_diag"):
+                    cw = wb["clean_word"]
+                    user_word_raw.setdefault(cw, []).append(wb["vowel_ms"])
+
+    all_diag_words_present = sorted(list(set(list((word_bench_dist or {}).keys()) + list(user_word_raw.keys()))))
+
     canvas_data = {
         "passage_key": passage_key,
+        "view_mode": view_mode,
         "x_metric": x_metric,
         "is_custom_mode": is_custom_mode,
         "mu_x": float(mu[0]), "mu_y": float(mu[1]),
@@ -846,33 +890,35 @@ def build_e2_radar_html(passage_key: str, eval_history: list = None, is_custom_m
         "x_min": x_min, "x_max": x_max,
         "y_min": y_min, "y_max": y_max,
         "history": history_list,
-        "benchmark": bench_points
+        "benchmark": bench_points,
+        "words_alpha": all_diag_words_present,
+        "word_bench": word_bench_dist or {},
+        "user_word_raw": user_word_raw
     }
 
-    mode_badge = "✏️ CUSTOM FREE-TEXT MODE" if is_custom_mode else f"🎯 2D Strike Zone (Trials: {len(history_list)})"
+    view_titles = {
+        "scatter2d": f"2D ストライクゾーン (試行回数: {len(history_list)})",
+        "word_swarm": "弱化必須語 生データ分布 (Swarm + Box | アルファベット順)",
+        "metrics_1d": "各プロソディ指標の生データ分布比較 (Swarm ストリップ)"
+    }
+    header_title = view_titles.get(view_mode, "2D ストライクゾーン")
 
-    return f"""
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-  body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
-  .toolbar {{ display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
-  .toolbar-title {{ font-size: 13px; font-weight: 600; color: #94A3B8; display: flex; align-items: center; gap: 8px; }}
-  .btn-group {{ display: flex; align-items: center; gap: 8px; }}
-  button {{ font-family: inherit; font-size: 12px; font-weight: bold; padding: 5px 12px; border-radius: 6px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; }}
-  button:hover {{ background: #334155; color: #FFFFFF; }}
-  button.toggle-active {{ background: #1E3A8A; color: #93C5FD; border-color: #3B82F6; }}
-  #scope-wrapper {{ position: relative; width: 100%; height: 410px; background: #090D16; border: 1px solid #1E293B; border-top: none; border-radius: 0 0 8px 8px; }}
-  canvas {{ position: absolute; left: 0; top: 0; width: 100%; height: 100%; }}
-</style>
-</head>
-<body>
+    return f"""<!DOCTYPE html><html><head><style>
+body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
+.toolbar {{ display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
+.toolbar-title {{ font-size: 13px; font-weight: 700; color: #BAE6FD; display: flex; align-items: center; gap: 8px; }}
+.btn-group {{ display: flex; align-items: center; gap: 8px; }}
+button {{ font-family: inherit; font-size: 12px; font-weight: bold; padding: 4px 11px; border-radius: 5px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; }}
+button:hover {{ background: #334155; color: #FFFFFF; }}
+button.toggle-active {{ background: #172554; color: #BAE6FD; border-color: #38BDF8; }}
+#scope-wrapper {{ position: relative; width: 100%; height: 420px; background: #090D16; border: 1px solid #1E293B; border-top: none; border-radius: 0 0 8px 8px; }}
+canvas {{ position: absolute; left: 0; top: 0; width: 100%; height: 100%; }}
+</style></head><body>
 <div class="toolbar">
-  <div class="toolbar-title"><span>{mode_badge}</span></div>
+  <div class="toolbar-title"><span>{header_title}</span></div>
   <div class="btn-group">
-    <button id="btn-toggle-bm" class="toggle-active" style="display: {'none' if is_custom_mode else 'inline-block'};">👥 Benchmark: ON</button>
-    <button id="btn-dl-radar">💾 Radar (.png)</button>
+    <button id="btn-toggle-bm" class="toggle-active" style="display: {'none' if is_custom_mode else 'inline-block'};">Benchmark: ON</button>
+    <button id="btn-dl-radar">Plot (.png)</button>
   </div>
 </div>
 <div id="scope-wrapper">
@@ -886,24 +932,16 @@ const wrapper = document.getElementById('scope-wrapper');
 const btnDl = document.getElementById('btn-dl-radar');
 const btnToggleBm = document.getElementById('btn-toggle-bm');
 let showBenchmark = true;
+let W = 800, H = 420;
 
-const MARGIN = {{ left: 80, right: 30, top: 20, bottom: 45 }};
-let W = 800, H = 410;
-
-function xToPx(x) {{ return MARGIN.left + ((x - D.x_min) / (D.x_max - D.x_min)) * (W - MARGIN.left - MARGIN.right); }}
-function yToPx(y) {{ return (H - MARGIN.bottom) - ((y - D.y_min) / (D.y_max - D.y_min)) * (H - MARGIN.top - MARGIN.bottom); }}
-
-function createEllipsePath(ctx, mu_x, mu_y, v1, v2) {{
-  ctx.beginPath();
-  const N_PTS = 64;
-  for (let i = 0; i <= N_PTS; i++) {{
-    const theta = (i / N_PTS) * 2 * Math.PI;
-    const dataX = mu_x + Math.cos(theta) * v1[0] + Math.sin(theta) * v2[0];
-    const dataY = mu_y + Math.cos(theta) * v1[1] + Math.sin(theta) * v2[1];
-    const px = xToPx(dataX), py = yToPx(dataY);
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-  }}
-  ctx.closePath();
+function quantile(arr, q) {{
+  if (!arr || arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (sorted[base + 1] !== undefined) return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+  return sorted[base];
 }}
 
 function draw() {{
@@ -911,13 +949,20 @@ function draw() {{
   W = wrapper.clientWidth; H = wrapper.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
   ctx.fillStyle = "#090D16"; ctx.fillRect(0, 0, W, H);
+  if (D.view_mode === "word_swarm") drawWordSwarmBox();
+  else if (D.view_mode === "metrics_1d") drawMetrics1DSwarm();
+  else drawScatter2D();
+}}
+
+function drawScatter2D() {{
+  const MARGIN = {{ left: 78, right: 28, top: 20, bottom: 46 }};
   const plotW = W - MARGIN.left - MARGIN.right;
   const plotH = H - MARGIN.top - MARGIN.bottom;
   const isRcf = (D.x_metric === "rcf");
+  function xToPx(x) {{ return MARGIN.left + ((x - D.x_min) / (D.x_max - D.x_min)) * plotW; }}
+  function yToPx(y) {{ return (H - MARGIN.bottom) - ((y - D.y_min) / (D.y_max - D.y_min)) * plotH; }}
 
-  // グリッド線
   ctx.strokeStyle = "rgba(148, 163, 184, 0.10)"; ctx.lineWidth = 1.0;
   const stepX = isRcf ? 0.1 : ((D.x_max - D.x_min) > 20 ? 4 : 2);
   const firstTickX = Math.ceil(D.x_min / stepX) * stepX;
@@ -936,59 +981,74 @@ function draw() {{
 
   ctx.strokeStyle = "#334155"; ctx.lineWidth = 1.5;
   ctx.strokeRect(MARGIN.left, MARGIN.top, plotW, plotH);
-
-  ctx.fillStyle = "#94A3B8"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText(isRcf ? "Content / Function Vowel Ratio (R_CF)" : "Vowel Occupancy: %V (%)", MARGIN.left + plotW / 2, H - 6);
-  ctx.save(); ctx.translate(22, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2);
-  ctx.fillText("Schwa P75 Duration (ms)", 0, 0); ctx.restore();
+  ctx.fillStyle = "#CBD5E1"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(isRcf ? "内容語 / 機能語 母音持続時間比 (R_CF)" : "母音占有率 (%V) [%]", MARGIN.left + plotW / 2, H - 7);
+  ctx.save(); ctx.translate(20, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText("弱母音持続時間 (Schwa P75) [ms]", 0, 0); ctx.restore();
 
   ctx.save();
   ctx.beginPath(); ctx.rect(MARGIN.left, MARGIN.top, plotW, plotH); ctx.clip();
 
+  function drawEllipse(mu_x, mu_y, v1, v2) {{
+    ctx.beginPath();
+    const N_PTS = 64;
+    for (let i = 0; i <= N_PTS; i++) {{
+      const theta = (i / N_PTS) * 2 * Math.PI;
+      const dx = mu_x + Math.cos(theta) * v1[0] + Math.sin(theta) * v2[0];
+      const dy = mu_y + Math.cos(theta) * v1[1] + Math.sin(theta) * v2[1];
+      const px = xToPx(dx), py = yToPx(dy);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }}
+    ctx.closePath();
+  }}
+
   if (!D.is_custom_mode) {{
-    // 95% Strike Zone
-    createEllipsePath(ctx, D.mu_x, D.mu_y, D.v1_95, D.v2_95);
-    ctx.fillStyle = "rgba(16, 185, 129, 0.15)"; ctx.fill();
+    drawEllipse(D.mu_x, D.mu_y, D.v1_95, D.v2_95);
+    ctx.fillStyle = "rgba(16, 185, 129, 0.13)"; ctx.fill();
     ctx.strokeStyle = "#10B981"; ctx.lineWidth = 2.0; ctx.setLineDash([5, 4]); ctx.stroke();
 
-    // Centroid
-    createEllipsePath(ctx, D.mu_x, D.mu_y, D.v1_ci, D.v2_ci);
-    ctx.fillStyle = "rgba(56, 189, 248, 0.35)"; ctx.fill();
+    drawEllipse(D.mu_x, D.mu_y, D.v1_ci, D.v2_ci);
+    ctx.fillStyle = "rgba(56, 189, 248, 0.30)"; ctx.fill();
     ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 1.2; ctx.setLineDash([]); ctx.stroke();
 
     if (showBenchmark && D.benchmark && D.benchmark.length > 0) {{
       D.benchmark.forEach(b => {{
         const bxVal = isRcf ? b.rcf : b.pct_v;
         const bx = xToPx(bxVal), by = yToPx(b.schwa_p75_ms);
-        ctx.save(); ctx.globalAlpha = 0.65; ctx.fillStyle = b.color;
-        ctx.strokeStyle = "#0F172A"; ctx.lineWidth = 1.0;
-        ctx.beginPath(); ctx.arc(bx, by, 5.0, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = b.color;
+        ctx.strokeStyle = "#090D16"; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(bx, by, 5.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); ctx.restore();
       }});
-      const legX = W - MARGIN.right - 145, legY = MARGIN.top + 8;
-      ctx.fillStyle = "rgba(9, 13, 22, 0.85)"; ctx.fillRect(legX, legY, 135, 52);
-      ctx.strokeStyle = "#1E293B"; ctx.strokeRect(legX, legY, 135, 52);
+
+      const legX = W - MARGIN.right - 150, legY = MARGIN.top + 8;
+      ctx.fillStyle = "rgba(9, 13, 22, 0.88)"; ctx.fillRect(legX, legY, 142, 68);
+      ctx.strokeStyle = "#1E293B"; ctx.strokeRect(legX, legY, 142, 68);
       ctx.font = "10.5px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      ctx.fillStyle = "#38BDF8"; ctx.beginPath(); ctx.arc(legX + 12, legY + 12, 4.0, 0, 2 * Math.PI); ctx.fill();
-      ctx.fillStyle = "#94A3B8"; ctx.fillText("Native (US/UK)", legX + 22, legY + 12);
-      ctx.fillStyle = "#F59E0B"; ctx.beginPath(); ctx.arc(legX + 12, legY + 26, 4.0, 0, 2 * Math.PI); ctx.fill();
-      ctx.fillStyle = "#94A3B8"; ctx.fillText("JP-Accented", legX + 22, legY + 26);
-      ctx.fillStyle = "#EF4444"; ctx.beginPath(); ctx.arc(legX + 12, legY + 40, 4.0, 0, 2 * Math.PI); ctx.fill();
-      ctx.fillStyle = "#94A3B8"; ctx.fillText("JP-Mora-Forced", legX + 22, legY + 40);
+      const items = [
+        ["#38BDF8", "US-Native (米)"],
+        ["#10B981", "UK-Native (英)"],
+        ["#F59E0B", "JP-Accented"],
+        ["#EF4444", "JP-Mora (等時拍)"]
+      ];
+      items.forEach((it, i) => {{
+        const iy = legY + 12 + i * 15;
+        ctx.fillStyle = it[0]; ctx.beginPath(); ctx.arc(legX + 12, iy, 4.0, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillStyle = "#CBD5E1"; ctx.fillText(it[1], legX + 22, iy);
+      }});
     }}
   }} else {{
     const zx1 = xToPx(isRcf ? 1.30 : 35.0), zx2 = xToPx(isRcf ? 1.85 : 49.0);
-    const zy1 = yToPx(65.0), zy2 = yToPx(32.0);
+    const zy1 = yToPx(65.0), zy2 = yToPx(35.0);
     ctx.fillStyle = "rgba(16, 185, 129, 0.14)"; ctx.fillRect(zx1, zy1, zx2 - zx1, zy2 - zy1);
     ctx.strokeStyle = "#10B981"; ctx.lineWidth = 2.0; ctx.setLineDash([6, 4]); ctx.strokeRect(zx1, zy1, zx2 - zx1, zy2 - zy1); ctx.setLineDash([]);
     ctx.fillStyle = "#10B981"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText("STRESS-TIMED ZONE (R_CF ≥ 1.3x, Schwa ≤ 65ms)", zx1 + 8, zy1 + 16);
+    ctx.fillText("ストレス拍合格領域 (R_CF ≥ 1.3x, Schwa ≤ 65ms)", zx1 + 8, zy1 + 16);
   }}
 
-  // ユーザー試行履歴のプロット
   const total = D.history.length;
   if (total > 0) {{
     if (total > 1) {{
-      ctx.strokeStyle = "rgba(248, 250, 252, 0.45)"; ctx.lineWidth = 1.8; ctx.setLineDash([3, 3]); ctx.beginPath();
+      ctx.strokeStyle = "rgba(240, 249, 255, 0.45)"; ctx.lineWidth = 1.8; ctx.setLineDash([3, 3]); ctx.beginPath();
       for (let i = 0; i < total; i++) {{
         const hxVal = isRcf ? D.history[i].r_cf : D.history[i].pct_v;
         const px = xToPx(hxVal), py = yToPx(D.history[i].schwa_p75_ms);
@@ -1004,13 +1064,13 @@ function draw() {{
       const alpha = total === 1 ? 1.0 : 0.45 + (idx / (total - 1)) * 0.55;
       ctx.save(); ctx.globalAlpha = alpha;
       if (isLatest) {{
-        ctx.fillStyle = pt.status_color + "44"; ctx.beginPath(); ctx.arc(px, py, 18, 0, 2 * Math.PI); ctx.fill();
-        ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(px, py, 8, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#F8FAFC"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = px > W - 180 ? "right" : "left";
+        ctx.fillStyle = pt.status_color + "44"; ctx.beginPath(); ctx.arc(px, py, 16, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(px, py, 7.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = px > W - 200 ? "right" : "left";
         const xStr = isRcf ? `${{pt.r_cf}}x` : `${{pt.pct_v}}%`;
-        ctx.fillText(`#${{idx+1}} (${{xStr}}, ${{pt.schwa_p75_ms}}ms | V_diag:${{pt.diag_median_ms}}ms)`, px + (px > W - 180 ? -12 : 12), py - 10);
+        ctx.fillText(`#${{idx+1}} (${{xStr}}, ${{pt.schwa_p75_ms}}ms | V_diag:${{pt.diag_median_ms}}ms)`, px + (px > W - 200 ? -12 : 12), py - 10);
       }} else {{
-        ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
         ctx.fillStyle = "#E2E8F0"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.fillText(`#${{idx+1}}`, px, py - 9);
       }}
       ctx.restore();
@@ -1019,27 +1079,250 @@ function draw() {{
   ctx.restore();
 }}
 
+function drawWordSwarmBox() {{
+  const MARGIN = {{ left: 68, right: 24, top: 24, bottom: 52 }};
+  const plotW = W - MARGIN.left - MARGIN.right;
+  const plotH = H - MARGIN.top - MARGIN.bottom;
+  const words = D.words_alpha || [];
+  const yMin = 0, yMax = 155;
+  function yToPx(y) {{ return (H - MARGIN.bottom) - ((Math.min(y, yMax) - yMin) / (yMax - yMin)) * plotH; }}
+
+  for (let y = 0; y <= 150; y += 25) {{
+    const py = yToPx(y);
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)"; ctx.lineWidth = 1.0;
+    ctx.beginPath(); ctx.moveTo(MARGIN.left, py); ctx.lineTo(W - MARGIN.right, py); ctx.stroke();
+    ctx.fillStyle = "#64748B"; ctx.font = "11.5px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillText(y + "ms", MARGIN.left - 8, py);
+  }}
+
+  const y45 = yToPx(45), y65 = yToPx(65);
+  ctx.strokeStyle = "rgba(16, 185, 129, 0.7)"; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(MARGIN.left, y45); ctx.lineTo(W - MARGIN.right, y45); ctx.stroke();
+  ctx.strokeStyle = "rgba(239, 68, 68, 0.7)";
+  ctx.beginPath(); ctx.moveTo(MARGIN.left, y65); ctx.lineTo(W - MARGIN.right, y65); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "#334155"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(MARGIN.left, MARGIN.top, plotW, plotH);
+  ctx.fillStyle = "#CBD5E1"; ctx.font = "bold 12.5px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("弱化必須語 (アルファベット順: 緑箱=Native / 赤箱=JP-Mora / 白枠星点=あなた)", MARGIN.left + plotW / 2, H - 8);
+  ctx.save(); ctx.translate(18, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText("母音持続時間 [ms]", 0, 0); ctx.restore();
+
+  if (words.length === 0) return;
+  const colW = plotW / words.length;
+
+  words.forEach((w, idx) => {{
+    const cx = MARGIN.left + (idx + 0.5) * colW;
+    ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(w, cx, H - MARGIN.bottom + 18);
+    const bInfo = D.word_bench[w] || {{ native: [], mora: [], us: [], uk: [] }};
+    const uPts = D.user_word_raw[w] || [];
+
+    if (showBenchmark && bInfo.native && bInfo.native.length > 0) {{
+      const nx = cx - colW * 0.20;
+      const q25 = quantile(bInfo.native, 0.25), med = quantile(bInfo.native, 0.5), q75 = quantile(bInfo.native, 0.75);
+      const boxW = Math.min(14, colW * 0.22);
+      ctx.fillStyle = "rgba(16, 185, 129, 0.28)"; ctx.strokeStyle = "#10B981"; ctx.lineWidth = 1.2;
+      const topY = yToPx(q75), botY = yToPx(q25);
+      ctx.fillRect(nx - boxW/2, topY, boxW, Math.max(2, botY - topY));
+      ctx.strokeRect(nx - boxW/2, topY, boxW, Math.max(2, botY - topY));
+      ctx.beginPath(); ctx.moveTo(nx - boxW/2, yToPx(med)); ctx.lineTo(nx + boxW/2, yToPx(med)); ctx.stroke();
+      (bInfo.us || []).forEach((v, j) => {{
+        const jx = nx + ((j % 3) - 1) * 3.0;
+        ctx.fillStyle = "#38BDF8"; ctx.beginPath(); ctx.arc(jx, yToPx(v), 2.8, 0, 2 * Math.PI); ctx.fill();
+      }});
+      (bInfo.uk || []).forEach((v, j) => {{
+        const jx = nx + (((j + 1) % 3) - 1) * 3.0;
+        ctx.fillStyle = "#10B981"; ctx.beginPath(); ctx.arc(jx, yToPx(v), 2.8, 0, 2 * Math.PI); ctx.fill();
+      }});
+    }}
+
+    if (showBenchmark && bInfo.mora && bInfo.mora.length > 0) {{
+      const mx = cx + colW * 0.20;
+      const q25 = quantile(bInfo.mora, 0.25), med = quantile(bInfo.mora, 0.5), q75 = quantile(bInfo.mora, 0.75);
+      const boxW = Math.min(14, colW * 0.22);
+      ctx.fillStyle = "rgba(239, 68, 68, 0.22)"; ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.2;
+      const topY = yToPx(q75), botY = yToPx(q25);
+      ctx.fillRect(mx - boxW/2, topY, boxW, Math.max(2, botY - topY));
+      ctx.strokeRect(mx - boxW/2, topY, boxW, Math.max(2, botY - topY));
+      ctx.beginPath(); ctx.moveTo(mx - boxW/2, yToPx(med)); ctx.lineTo(mx + boxW/2, yToPx(med)); ctx.stroke();
+      bInfo.mora.forEach((v, j) => {{
+        const jx = mx + ((j % 3) - 1) * 3.0;
+        ctx.fillStyle = "#EF4444"; ctx.beginPath(); ctx.arc(jx, yToPx(v), 2.8, 0, 2 * Math.PI); ctx.fill();
+      }});
+    }}
+
+    uPts.forEach((v, j) => {{
+      const ux = cx + ((j % 2 === 0 ? 1 : -1) * (Math.floor(j / 2) * 3.5));
+      const uy = yToPx(v);
+      const col = v <= 48 ? "#10B981" : (v <= 65 ? "#F59E0B" : "#EF4444");
+      ctx.fillStyle = col; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(ux, uy, 5.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    }});
+  }});
+}}
+
+function drawMetrics1DSwarm() {{
+  const MARGIN = {{ left: 165, right: 35, top: 28, bottom: 40 }};
+  const plotW = W - MARGIN.left - MARGIN.right;
+  const plotH = H - MARGIN.top - MARGIN.bottom;
+  const tracks = [
+    {{ key: "schwa_p75_ms", label: "弱母音長 Schwa P75 [ms]", min: 35, max: 105, target: "≤ 60ms" }},
+    {{ key: "rcf", label: "内容/機能語比 R_CF [倍]", min: 0.7, max: 1.85, target: "≥ 1.35x" }},
+    {{ key: "npvi", label: "母音伸縮指数 nPVI-V", min: 35, max: 75, target: "42〜58" }}
+  ];
+  const rowH = plotH / tracks.length;
+
+  tracks.forEach((tr, idx) => {{
+    const cy = MARGIN.top + (idx + 0.5) * rowH;
+    ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillText(tr.label, MARGIN.left - 14, cy - 7);
+    ctx.fillStyle = "#64748B"; ctx.font = "11px sans-serif";
+    ctx.fillText("目標: " + tr.target, MARGIN.left - 14, cy + 9);
+    ctx.strokeStyle = "#334155"; ctx.lineWidth = 2.0;
+    ctx.beginPath(); ctx.moveTo(MARGIN.left, cy); ctx.lineTo(W - MARGIN.right, cy); ctx.stroke();
+
+    function valToX(v) {{
+      const cl = Math.max(tr.min, Math.min(tr.max, v));
+      return MARGIN.left + ((cl - tr.min) / (tr.max - tr.min)) * plotW;
+    }}
+
+    if (showBenchmark && D.benchmark) {{
+      D.benchmark.forEach((b, j) => {{
+        const v = b[tr.key];
+        if (v === undefined) return;
+        const px = valToX(v);
+        const py = cy + ((j % 5) - 2) * 3.5;
+        ctx.fillStyle = b.color; ctx.globalAlpha = 0.75;
+        ctx.beginPath(); ctx.arc(px, py, 4.5, 0, 2 * Math.PI); ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }});
+    }}
+
+    D.history.forEach((h, i) => {{
+      const v = tr.key === "npvi" ? h.npvi_clipped : h[tr.key];
+      if (v === undefined) return;
+      const px = valToX(v);
+      ctx.fillStyle = h.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(px, cy, 7.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(`#${{i+1}}: ${{v}}`, px, cy - 14);
+    }});
+  }});
+}}
+
 if (btnToggleBm) {{
   btnToggleBm.addEventListener("click", () => {{
     showBenchmark = !showBenchmark;
-    btnToggleBm.textContent = showBenchmark ? "👥 Benchmark: ON" : "👥 Benchmark: OFF";
+    btnToggleBm.textContent = showBenchmark ? "Benchmark: ON" : "Benchmark: OFF";
     btnToggleBm.classList.toggle("toggle-active", showBenchmark);
     draw();
   }});
 }}
 btnDl.addEventListener("click", () => {{
   const link = document.createElement("a");
-  link.download = `NinjaPhonetics_E2_${{D.passage_key}}_radar.png`; link.href = canvas.toDataURL("image/png"); link.click();
+  link.download = `NinjaPhonetics_E2_${{D.passage_key}}_${{D.view_mode}}.png`; link.href = canvas.toDataURL("image/png"); link.click();
 }});
 window.addEventListener("resize", draw);
 draw();
-</script>
-</body>
-</html>
-"""
+</script></body></html>"""
 
 # =====================================================================
-# メイン画面描画分岐
+# 単語区間クリック再生付き「発話実測マップ」 (HTML)
+# =====================================================================
+def build_clickable_word_map_html(word_breakdown: list, audio_bytes: bytes, trial_no: int) -> str:
+    wav_b64 = base64.b64encode(audio_bytes).decode("utf-8") if audio_bytes else ""
+    badges_html = ""
+    for idx, wb in enumerate(word_breakdown):
+        w = wb["word"]
+        v_ms = wb["vowel_ms"]
+        s_t = wb.get("start", 0.0)
+        e_t = wb.get("end", 0.0)
+
+        if wb.get("is_diag"):
+            if v_ms <= 48.0:
+                style = "background:#064E3B; color:#A7F3D0; border:1px solid #10B981;"
+                sub_col = "#34D399"
+            elif v_ms <= 65.0:
+                style = "background:#78350F; color:#FDE68A; border:1px solid #F59E0B;"
+                sub_col = "#FBBF24"
+            else:
+                style = "background:#7F1D1D; color:#FECACA; border:1px solid #EF4444;"
+                sub_col = "#F87171"
+            badges_html += (
+                f'<span class="w-token diag-token" style="{style}" onclick="playSlice({s_t}, {e_t}, this)" '
+                f'title="クリックで再生 ({s_t:.2f}s - {e_t:.2f}s)">'
+                f'{w} <small style="color:{sub_col}; font-weight:700;">{v_ms:.0f}ms</small></span>'
+            )
+        else:
+            badges_html += (
+                f'<span class="w-token plain-token" onclick="playSlice({s_t}, {e_t}, this)" '
+                f'title="クリックで再生 ({w}: 母音 {v_ms:.0f}ms)">'
+                f'{w}</span>'
+            )
+
+    return f"""<!DOCTYPE html><html><head><style>
+body {{ margin: 0; padding: 0; background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #E2E8F0; }}
+.map-box {{ background: #0F172A; border: 1px solid #1E293B; border-left: 3px solid #BAE6FD; border-radius: 8px; padding: 8px 12px; }}
+.map-hdr {{ display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; color: #BAE6FD; margin-bottom: 6px; }}
+.map-sub {{ font-size: 11px; font-weight: 500; color: #94A3B8; }}
+.tokens-wrap {{ line-height: 2.1; max-height: 105px; overflow-y: auto; padding-right: 4px; }}
+.w-token {{ display: inline-block; padding: 1px 5px; margin-right: 3px; margin-bottom: 2px; border-radius: 4px; font-size: 13px; cursor: pointer; transition: all 0.12s; user-select: none; }}
+.diag-token {{ font-weight: 700; }}
+.plain-token {{ color: #CBD5E1; background: transparent; border: 1px solid transparent; }}
+.plain-token:hover {{ background: #1E293B; border-color: #334155; color: #FFFFFF; }}
+.diag-token:hover {{ filter: brightness(1.2); transform: translateY(-1px); }}
+.playing-now {{ outline: 2px solid #BAE6FD !important; box-shadow: 0 0 8px rgba(186, 230, 253, 0.6); }}
+</style></head><body>
+<div class="map-box">
+  <div class="map-hdr">
+    <span>発話実測マップ (Trial #{trial_no} | 弱化必須語のみ色分け: 緑 ≤48ms / 黄 49-65ms / 赤 >65ms)</span>
+    <span class="map-sub">各単語をクリックすると該当区間の音声を再生</span>
+  </div>
+  <div class="tokens-wrap">{badges_html}</div>
+</div>
+<script>
+const WAV_B64 = "{wav_b64}";
+let audioCtx = null;
+let audioBuffer = null;
+let currentSource = null;
+
+async function ensureAudioDecoded() {{
+  if (!WAV_B64) return false;
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") await audioCtx.resume();
+  if (!audioBuffer) {{
+    const raw = atob(WAV_B64);
+    const buf = new ArrayBuffer(raw.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+    audioBuffer = await audioCtx.decodeAudioData(buf);
+  }}
+  return true;
+}}
+
+async function playSlice(startSec, endSec, el) {{
+  const ok = await ensureAudioDecoded();
+  if (!ok || !audioBuffer) return;
+  if (currentSource) {{
+    try {{ currentSource.stop(); }} catch(e) {{}}
+  }}
+  document.querySelectorAll('.w-token').forEach(t => t.classList.remove('playing-now'));
+  el.classList.add('playing-now');
+  const padStart = Math.max(0, startSec - 0.035);
+  const padEnd = Math.min(audioBuffer.duration, Math.max(endSec + 0.045, startSec + 0.12));
+  const dur = Math.max(0.08, padEnd - padStart);
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(audioCtx.destination);
+  source.start(0, padStart, dur);
+  currentSource = source;
+  source.onended = () => el.classList.remove('playing-now');
+}}
+</script></body></html>"""
+
+# =====================================================================
+# メイン画面ルーティング
 # =====================================================================
 if st.session_state.app_mode == "RL":
     cols = st.columns(len(PRESETS))
@@ -1069,9 +1352,7 @@ if st.session_state.app_mode == "RL":
     if st.session_state.current_audio_bytes is not None:
         if st.session_state.current_label:
             st.markdown(
-                f"<div style='color: #94A3B8; font-size: 1.85rem; font-weight: 700; margin-top: 14px; margin-bottom: 12px; line-height: 1.25;'>"
-                f"● 表示中: <span style='color: #F8FAFC;'>{st.session_state.current_label}</span>"
-                f"</div>",
+                f"<div class='sec-header'>{SHURIKEN_ICON_SM} 表示中: <span style='color: #F8FAFC;'>{st.session_state.current_label}</span></div>",
                 unsafe_allow_html=True
             )
         clean_export_name = re.sub(r'[^a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', '_', st.session_state.current_label)
@@ -1080,19 +1361,13 @@ if st.session_state.app_mode == "RL":
         scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
         html_code = build_spike2_html(scope_data, auto_play=st.session_state.auto_play, export_name=clean_export_name or "sample")
         st.session_state.auto_play = False
-        components.html(html_code, height=640, scrolling=False)
+        components.html(html_code, height=620, scrolling=False)
 
 else:
-    # =====================================================================
-    # --- MODE 2: E2 3大プロソディ診断 (2階層: ドリル vs 総合アセスメント) ---
-    # =====================================================================
-    cat_col1, cat_col2 = st.columns(2)
-    with cat_col1:
-        if st.button(
-            "🥊 フォーカス・ドリル (短文・反復修正)",
-            type="primary" if st.session_state.e2_category == "drill" else "secondary",
-            use_container_width=True
-        ):
+    # E2 モード画面
+    sub_t1, sub_t2, _ = st.columns([1.4, 1.4, 3.2])
+    with sub_t1:
+        if st.button("短文フォーカス・ドリル (S1〜S3)", type="primary" if st.session_state.e2_category == "drill" else "secondary", use_container_width=True):
             if st.session_state.e2_category != "drill":
                 st.session_state.e2_category = "drill"
                 st.session_state.e2_selected_passage = "S1_stress"
@@ -1103,12 +1378,8 @@ else:
                 st.session_state.e2_eval_history = []
                 st.session_state.e2_audio_bytes = None
                 st.rerun()
-    with cat_col2:
-        if st.button(
-            "🏆 総合アセスメント (長文・標準規格)",
-            type="primary" if st.session_state.e2_category == "passage" else "secondary",
-            use_container_width=True
-        ):
+    with sub_t2:
+        if st.button("総合アセスメント (長文・標準規格)", type="primary" if st.session_state.e2_category == "passage" else "secondary", use_container_width=True):
             if st.session_state.e2_category != "passage":
                 st.session_state.e2_category = "passage"
                 st.session_state.e2_selected_passage = "P1_northwind"
@@ -1121,9 +1392,9 @@ else:
                 st.rerun()
 
     if st.session_state.e2_category == "drill":
-        d_col1, d_col2, d_col3 = st.columns(3)
+        d_col1, d_col2, d_col3, _ = st.columns([1.2, 1.2, 1.2, 2.4])
         with d_col1:
-            if st.button("ドリル 1: 語彙強弱 (S1)", type="primary" if st.session_state.e2_selected_passage == "S1_stress" else "secondary", use_container_width=True):
+            if st.button("S1: 語彙強弱拍", type="primary" if st.session_state.e2_selected_passage == "S1_stress" else "secondary", use_container_width=True):
                 st.session_state.e2_selected_passage = "S1_stress"
                 target_txt = E2_PASSAGE_BENCHMARKS["S1_stress"]["target_text"]
                 st.session_state.e2_custom_text = target_txt
@@ -1132,7 +1403,7 @@ else:
                 st.session_state.e2_eval_history = []
                 st.rerun()
         with d_col2:
-            if st.button("ドリル 2: 子音連結 (S2)", type="primary" if st.session_state.e2_selected_passage == "S2_clusters" else "secondary", use_container_width=True):
+            if st.button("S2: 子音連結保持", type="primary" if st.session_state.e2_selected_passage == "S2_clusters" else "secondary", use_container_width=True):
                 st.session_state.e2_selected_passage = "S2_clusters"
                 target_txt = E2_PASSAGE_BENCHMARKS["S2_clusters"]["target_text"]
                 st.session_state.e2_custom_text = target_txt
@@ -1141,7 +1412,7 @@ else:
                 st.session_state.e2_eval_history = []
                 st.rerun()
         with d_col3:
-            if st.button("ドリル 3: 機能語弱化 (S3)", type="primary" if st.session_state.e2_selected_passage == "S3_connected" else "secondary", use_container_width=True):
+            if st.button("S3: 機能語弱化", type="primary" if st.session_state.e2_selected_passage == "S3_connected" else "secondary", use_container_width=True):
                 st.session_state.e2_selected_passage = "S3_connected"
                 target_txt = E2_PASSAGE_BENCHMARKS["S3_connected"]["target_text"]
                 st.session_state.e2_custom_text = target_txt
@@ -1150,9 +1421,9 @@ else:
                 st.session_state.e2_eval_history = []
                 st.rerun()
     else:
-        p_col1, p_col2, p_col3 = st.columns(3)
+        p_col1, p_col2, p_col3, _ = st.columns([1.3, 1.3, 1.3, 2.1])
         with p_col1:
-            if st.button("標準 1: 北風と太陽 (P1)", type="primary" if st.session_state.e2_selected_passage == "P1_northwind" else "secondary", use_container_width=True):
+            if st.button("P1: 北風と太陽 (113語)", type="primary" if st.session_state.e2_selected_passage == "P1_northwind" else "secondary", use_container_width=True):
                 st.session_state.e2_selected_passage = "P1_northwind"
                 target_txt = E2_PASSAGE_BENCHMARKS["P1_northwind"]["target_text"]
                 st.session_state.e2_custom_text = target_txt
@@ -1161,24 +1432,23 @@ else:
                 st.session_state.e2_eval_history = []
                 st.rerun()
         with p_col2:
-            st.button("標準 2: 虹のパッセージ (P2)", disabled=True, use_container_width=True, help="来月クレジット更新後に開放予定")
+            st.button("P2: 虹のパッセージ", disabled=True, use_container_width=True)
         with p_col3:
-            st.button("標準 3: 祖父のパッセージ (P3)", disabled=True, use_container_width=True, help="来月クレジット更新後に開放予定")
+            st.button("P3: 祖父のパッセージ", disabled=True, use_container_width=True)
 
     active_bm = E2_PASSAGE_BENCHMARKS[st.session_state.e2_selected_passage]
 
-    # カスタム英文入力テキストエリア
-    txt_col1, txt_col2 = st.columns([4.5, 1.0], vertical_alignment="bottom")
+    txt_col1, txt_col2 = st.columns([4.8, 1.0], vertical_alignment="bottom")
     with txt_col1:
-        text_height = 115 if st.session_state.e2_category == "passage" else 65
+        text_height = 85 if st.session_state.e2_category == "passage" else 55
         user_target_text = st.text_area(
-            "📝 ターゲット英文（自由に書き換え可能）",
+            "課題テキスト (自由に書き換え可能)",
             value=st.session_state.e2_custom_text,
             height=text_height,
             key="e2_text_input_widget"
         )
     with txt_col2:
-        if st.button("↺ 例文に戻す", use_container_width=True):
+        if st.button("例文に戻す", use_container_width=True):
             target_txt = active_bm["target_text"]
             st.session_state.e2_custom_text = target_txt
             st.session_state.e2_last_analyzed_text = target_txt
@@ -1198,10 +1468,10 @@ else:
         != " ".join(active_bm["target_text"].lower().split())
     )
 
-    # ★ 録音を先に受け取って評価履歴を更新する（上部パネルに実測結果を即座に反映させるため）
-    card_col1, card_col2 = st.columns([1.4, 1.1])
+    card_col1, card_col2 = st.columns([1.45, 1.05])
+
     with card_col1:
-        e2_input = st.audio_input("この英文を録音してプロソディ診断")
+        e2_input = st.audio_input("この英文を録音してプロソディ診断を実行")
         if e2_input is not None:
             new_e2_bytes = e2_input.read()
             if new_e2_bytes != st.session_state.e2_audio_bytes:
@@ -1219,126 +1489,83 @@ else:
                 if "error" not in eval_res:
                     st.session_state.e2_eval_history.append(eval_res)
 
-    # ★ 上部パネル：未録音時は「ガイド表示」、録音後は「あなたの各単語の実測ミリ秒＆合否カラー」に動的変化！
-    preview_badges = []
-    if st.session_state.e2_eval_history:
-        latest_wb = st.session_state.e2_eval_history[-1].get("word_breakdown", [])
-        trial_num = len(st.session_state.e2_eval_history)
-        mode_header = f"🔬 あなたの発話実測マップ (Trial #{trial_num} の単語別母音長: 緑=合格 ≤48ms / 黄=やや長 / 赤=等時拍 >65ms)"
-        for wb in latest_wb:
-            w = wb["word"]
-            v_ms = wb["vowel_ms"]
-            if wb["is_diag"]:
-                if v_ms <= 48.0:
-                    preview_badges.append(
-                        f"<span style='background:#064E3B; color:#A7F3D0; border:1px solid #10B981; padding:2px 6px; border-radius:4px; font-size:0.9rem; font-weight:700; margin-right:4px;'>{w} <small style='font-size:0.72rem; color:#34D399;'>{v_ms:.0f}ms✓</small></span>"
-                    )
-                elif v_ms <= 65.0:
-                    preview_badges.append(
-                        f"<span style='background:#78350F; color:#FDE68A; border:1px solid #F59E0B; padding:2px 6px; border-radius:4px; font-size:0.9rem; font-weight:700; margin-right:4px;'>{w} <small style='font-size:0.72rem; color:#FBBF24;'>{v_ms:.0f}ms</small></span>"
-                    )
-                else:
-                    preview_badges.append(
-                        f"<span style='background:#7F1D1D; color:#FECACA; border:1px solid #EF4444; padding:2px 6px; border-radius:4px; font-size:0.9rem; font-weight:700; margin-right:4px;'>{w} <small style='font-size:0.72rem; color:#F87171;'>{v_ms:.0f}ms!</small></span>"
-                    )
-            elif wb["is_func"]:
-                preview_badges.append(
-                    f"<span style='background:#1E293B; color:#94A3B8; border:1px solid #334155; padding:2px 6px; border-radius:4px; font-size:0.88rem; margin-right:4px;'>{w} <small style='font-size:0.68rem; color:#64748B;'>{v_ms:.0f}ms</small></span>"
-                )
-            else:
-                preview_badges.append(
-                    f"<span style='background:#1E3A8A; color:#F8FAFC; border:1px solid #3B82F6; padding:2px 7px; border-radius:4px; font-size:0.95rem; font-weight:700; margin-right:4px;'>{w} <small style='font-size:0.72rem; color:#93C5FD;'>{v_ms:.0f}ms</small></span>"
-                )
-    else:
-        mode_header = "✏️ CUSTOM FREE-TEXT MODE (未録音ガイド)" if is_custom_now else active_bm["title"] + " (未録音ガイド)"
-        for w in st.session_state.e2_custom_text.split():
-            clean_w = re.sub(r"[^a-zA-Z']", "", w).lower()
-            if clean_w in DIAGNOSTIC_FUNCTION_WORDS:
-                preview_badges.append(
-                    f"<span style='background:#78350F; color:#FDE68A; border:1px solid #D97706; padding:2px 6px; border-radius:4px; font-size:0.9rem; font-weight:700; margin-right:4px;'>{w} <small style='font-size:0.68rem; color:#F59E0B;'>[弱化必須]</small></span>"
-                )
-            elif clean_w in ALL_FUNCTION_WORDS:
-                preview_badges.append(
-                    f"<span style='background:#1E293B; color:#94A3B8; border:1px solid #334155; padding:2px 6px; border-radius:4px; font-size:0.9rem; margin-right:4px;'>{w}</span>"
-                )
-            else:
-                preview_badges.append(
-                    f"<span style='background:#1E3A8A; color:#F8FAFC; border:1px solid #3B82F6; padding:2px 7px; border-radius:4px; font-size:0.95rem; font-weight:700; margin-right:4px;'>{w} <small style='font-size:0.68rem; color:#93C5FD;'>[内容]</small></span>"
-                )
+        word_bench_dist = get_benchmark_word_raw_distributions(st.session_state.e2_selected_passage) if not is_custom_now else {}
 
-    mode_desc = "青色の【内容語】にしっかり時間をかけ、茶色の【弱化必須語 (to, at, and, was 等)】を極限まで短く（≤ 45ms）圧縮して発音してください。" if is_custom_now else active_bm["phonetics_desc"]
-
-    st.markdown(
-        f'<div style="background: #0F172A; border: 1px solid #1E293B; border-left: 4px solid {"#10B981" if st.session_state.e2_eval_history else "#38BDF8"}; border-radius: 8px; padding: 12px 18px; margin-bottom: 12px;">'
-        f'<div style="font-size: 0.85rem; font-weight: 700; color: {"#34D399" if st.session_state.e2_eval_history else "#38BDF8"}; margin-bottom: 6px;">{mode_header}</div>'
-        f'<div style="line-height: 2.15; margin-bottom: 6px; max-height: {"145px" if st.session_state.e2_category == "passage" else "75px"}; overflow-y: auto;">{"".join(preview_badges)}</div>'
-        f'<div style="font-size: 0.84rem; color: #94A3B8;">{mode_desc}</div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
-
-    with card_col1:
-        radar_html = build_e2_radar_html(
+        radar_html = build_e2_multiview_canvas_html(
             st.session_state.e2_selected_passage,
             st.session_state.e2_eval_history,
-            is_custom_mode=is_custom_now
+            is_custom_mode=is_custom_now,
+            view_mode=st.session_state.e2_plot_view,
+            word_bench_dist=word_bench_dist
         )
-        components.html(radar_html, height=455, scrolling=False)
+        components.html(radar_html, height=465, scrolling=False)
 
     with card_col2:
-        st.markdown("<div style='font-size: 1.05rem; font-weight: bold; color: #F8FAFC; margin-bottom: 8px;'>🎯 多次元プロソディ診断結果</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='sec-header'>{SHURIKEN_ICON_SM} 多次元プロソディ診断結果 (プロット表示切替)</div>", unsafe_allow_html=True)
+
+        v_btn1, v_btn2, v_btn3 = st.columns(3)
+        with v_btn1:
+            if st.button("1. 2D 総合楕円", type="primary" if st.session_state.e2_plot_view == "scatter2d" else "secondary", use_container_width=True):
+                st.session_state.e2_plot_view = "scatter2d"
+                st.rerun()
+        with v_btn2:
+            if st.button("2. 機能語 Swarm", type="primary" if st.session_state.e2_plot_view == "word_swarm" else "secondary", use_container_width=True):
+                st.session_state.e2_plot_view = "word_swarm"
+                st.rerun()
+        with v_btn3:
+            if st.button("3. 指標 1D 分布", type="primary" if st.session_state.e2_plot_view == "metrics_1d" else "secondary", use_container_width=True):
+                st.session_state.e2_plot_view = "metrics_1d"
+                st.rerun()
 
         if st.session_state.e2_eval_history:
             latest_ev = st.session_state.e2_eval_history[-1]
             trial_no = len(st.session_state.e2_eval_history)
-            dm_str = f"{latest_ev['d_m_sq']} (≤5.99 合格)" if latest_ev["d_m_sq"] is not None else "自由文判定"
+            dm_str = f"{latest_ev['d_m_sq']} (≤9.21 合格)" if latest_ev["d_m_sq"] is not None else "自由文判定"
 
             c_diag = "#10B981" if latest_ev["diag_median_ms"] <= 48.0 else ("#F59E0B" if latest_ev["diag_median_ms"] <= 65.0 else "#EF4444")
             c_schwa = "#10B981" if latest_ev["schwa_p75_ms"] <= 65.0 else "#EF4444"
             c_rcf = "#10B981" if latest_ev["r_cf"] >= 1.30 else "#EF4444"
             c_npvi = "#10B981" if 40.0 <= latest_ev["npvi_clipped"] <= 62.0 else "#F59E0B"
 
-            # LaTeX記号($...$)を使わず、HTMLの<sub>/<sup>タグで確実に美しくレンダリング
             summary_html = (
-                f'<div style="background: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 14px; margin-bottom: 10px;">'
+                f'<div style="background: #0F172A; border: 1px solid #1E293B; border-radius: 8px; padding: 12px; margin-top: 6px; margin-bottom: 10px;">'
                 f'<div style="display: flex; justify-content: space-between; align-items: baseline;">'
-                f'<span style="font-size: 0.85rem; color: #94A3B8; font-weight: 600;">VERDICT (Trial #{trial_no})</span>'
-                f'<span style="font-size: 0.8rem; color: #64748B;">蓄積データ: {trial_no} 件</span>'
+                f'<span style="font-size: 0.82rem; color: #94A3B8; font-weight: 600;">VERDICT (Trial #{trial_no})</span>'
+                f'<span style="font-size: 0.78rem; color: #64748B;">蓄積データ: {trial_no} 件</span>'
                 f'</div>'
                 f'<div style="font-size: 1.45rem; font-weight: 800; color: {latest_ev["status_color"]}; margin-bottom: 8px;">{latest_ev["verdict"]}</div>'
-                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 4px;">'
-                f'<span style="color: #FDE68A; font-size: 0.88rem; font-weight: 700;">★ 診断機能語中央値 (V<sub>diag</sub>):</span>'
+                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
+                f'<span style="color: #BAE6FD; font-size: 0.86rem; font-weight: 700;">弱化必須語 中央値 (V<sub>diag</sub>):</span>'
                 f'<span style="font-weight: 800; color: {c_diag};">{latest_ev["diag_median_ms"]} ms <small style="font-size:0.75rem; color:#94A3B8;">(目標 ≤45ms)</small></span>'
                 f'</div>'
-                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 4px;">'
-                f'<span style="color: #94A3B8; font-size: 0.88rem;">弱母音持続時間 (Schwa P75):</span>'
+                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
+                f'<span style="color: #94A3B8; font-size: 0.86rem;">弱母音持続時間 (Schwa P75):</span>'
                 f'<span style="font-weight: bold; color: {c_schwa};">{latest_ev["schwa_p75_ms"]:.1f} ms <small style="font-size:0.75rem; color:#94A3B8;">(目標 ≤65ms)</small></span>'
                 f'</div>'
-                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 4px;">'
-                f'<span style="color: #94A3B8; font-size: 0.88rem;">機能語圧縮比 (R<sub>CF</sub>):</span>'
+                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
+                f'<span style="color: #94A3B8; font-size: 0.86rem;">内容語/機能語比 (R<sub>CF</sub>):</span>'
                 f'<span style="font-weight: bold; color: {c_rcf};">{latest_ev["r_cf"]}x <small style="font-size:0.75rem; color:#94A3B8;">(内容 {latest_ev["mean_c_ms"]}ms / 機能 {latest_ev["mean_f_ms"]}ms)</small></span>'
                 f'</div>'
-                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 4px;">'
-                f'<span style="color: #94A3B8; font-size: 0.88rem;">リズム伸縮指数 (nPVI-V):</span>'
+                f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
+                f'<span style="color: #94A3B8; font-size: 0.86rem;">リズム伸縮指数 (nPVI-V):</span>'
                 f'<span style="font-weight: bold; color: {c_npvi};">{latest_ev["npvi_clipped"]} <small style="font-size:0.75rem; color:#94A3B8;">(適正 40〜60)</small></span>'
                 f'</div>'
-                f'<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">'
-                f'<span style="color: #94A3B8; font-size: 0.88rem;">2D Mahalanobis (D<sub>M</sub><sup>2</sup>):</span>'
+                f'<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">'
+                f'<span style="color: #94A3B8; font-size: 0.86rem;">2D Mahalanobis (D<sub>M</sub><sup>2</sup>):</span>'
                 f'<span style="font-weight: bold; color: #F8FAFC;">{dm_str}</span>'
                 f'</div>'
-                f'<div style="background: #0F172A; border-radius: 6px; padding: 9px; font-size: 0.85rem; color: #E2E8F0; line-height: 1.4;">'
-                f'💡 <b>アドバイス:</b> {latest_ev["feedback"]}'
+                f'<div style="background: #090D16; border-radius: 6px; padding: 8px; font-size: 0.83rem; color: #E2E8F0; line-height: 1.4;">'
+                f'💡 <b>フィードバック:</b> {latest_ev["feedback"]}'
                 f'</div>'
                 f'</div>'
             )
             st.markdown(summary_html, unsafe_allow_html=True)
 
-            # 機能語の実測値テーブル（components.html で確実に描画し生HTML露出を完全防止）
             wb_list = latest_ev.get("word_breakdown", [])
             diag_words_meas = [w for w in wb_list if w.get("is_diag")]
 
             if diag_words_meas:
-                st.markdown("<div style='font-size: 0.9rem; font-weight: bold; color: #FDE68A; margin-top: 4px; margin-bottom: 4px;'>📊 弱化必須語 (冠詞除く) の実測母音長一覧</div>", unsafe_allow_html=True)
+                st.markdown("<div style='font-size: 0.88rem; font-weight: bold; color: #BAE6FD; margin-top: 2px; margin-bottom: 4px;'>弱化必須語 (冠詞除く) の実測母音長一覧</div>", unsafe_allow_html=True)
                 rows_html = ""
                 for idx_w, dw in enumerate(diag_words_meas):
                     v_val = dw["vowel_ms"]
@@ -1357,58 +1584,54 @@ else:
 
                     bar_w = min(100, int((v_val / 130.0) * 100))
                     rows_html += (
-                        f'<tr style="border-bottom: 1px solid #1E293B; font-size: 12.5px;">'
-                        f'<td style="padding: 5px 6px; color: #64748B;">#{idx_w+1}</td>'
-                        f'<td style="padding: 5px 6px; font-weight: 700; color: #F8FAFC;">{dw["word"]}</td>'
-                        f'<td style="padding: 5px 6px; font-weight: 700; color: {bar_c}; font-variant-numeric: tabular-nums;">{v_val:.0f} ms</td>'
-                        f'<td style="padding: 5px 6px; width: 35%;">'
-                        f'<div style="background:#1E293B; height:8px; border-radius:4px; overflow:hidden;">'
+                        f'<tr style="border-bottom: 1px solid #1E293B; font-size: 12px;">'
+                        f'<td style="padding: 4px 6px; color: #64748B;">#{idx_w+1}</td>'
+                        f'<td style="padding: 4px 6px; font-weight: 700; color: #F8FAFC;">{dw["word"]}</td>'
+                        f'<td style="padding: 4px 6px; font-weight: 700; color: {bar_c}; font-variant-numeric: tabular-nums;">{v_val:.0f} ms</td>'
+                        f'<td style="padding: 4px 6px; width: 34%;">'
+                        f'<div style="background:#1E293B; height:7px; border-radius:4px; overflow:hidden;">'
                         f'<div style="width:{bar_w}%; background:{bar_c}; height:100%;"></div>'
                         f'</div></td>'
-                        f'<td style="padding: 5px 6px; text-align: right;">'
-                        f'<span style="{badge_style} padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">{status_txt}</span>'
+                        f'<td style="padding: 4px 6px; text-align: right;">'
+                        f'<span style="{badge_style} padding: 1px 5px; border-radius: 4px; font-size: 10.5px; font-weight: bold;">{status_txt}</span>'
                         f'</td></tr>'
                     )
 
-                table_html = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                <style>
-                  body {{ margin: 0; padding: 0; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-                  .tbl-box {{ max-height: 185px; overflow-y: auto; border: 1px solid #334155; border-radius: 8px; padding: 4px 8px; background: #0F172A; }}
-                  table {{ width: 100%; border-collapse: collapse; }}
-                  th {{ position: sticky; top: 0; background: #0F172A; color: #94A3B8; font-size: 11.5px; text-align: left; padding: 5px 6px; border-bottom: 1px solid #475569; }}
-                </style>
-                </head>
-                <body>
-                <div class="tbl-box">
-                  <table>
-                    <thead>
-                      <tr><th>順</th><th>機能語</th><th>母音長</th><th>ゲージ (目標≤45ms)</th><th style="text-align:right;">判定</th></tr>
-                    </thead>
-                    <tbody>{rows_html}</tbody>
-                  </table>
-                </div>
-                </body>
-                </html>
-                """
-                components.html(table_html, height=195, scrolling=False)
+                table_html = f"""<!DOCTYPE html><html><head><style>
+body {{ margin: 0; padding: 0; background: #0F172A; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+.tbl-box {{ max-height: 175px; overflow-y: auto; border: 1px solid #1E293B; border-radius: 6px; padding: 2px 6px; background: #0F172A; }}
+table {{ width: 100%; border-collapse: collapse; }}
+th {{ position: sticky; top: 0; background: #0F172A; color: #94A3B8; font-size: 11px; text-align: left; padding: 4px 6px; border-bottom: 1px solid #334155; }}
+</style></head><body>
+<div class="tbl-box">
+  <table>
+    <thead><tr><th>順</th><th>単語</th><th>母音長</th><th>ゲージ (目標≤45ms)</th><th style="text-align:right;">判定</th></tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+</div></body></html>"""
+                components.html(table_html, height=185, scrolling=False)
 
-            if st.button("この課題の履歴をクリア", use_container_width=True):
+            if st.button("この課題の試行履歴をクリア", use_container_width=True):
                 st.session_state.e2_eval_history = []
                 st.session_state.e2_audio_bytes = None
                 st.rerun()
 
         else:
-            st.markdown("""
-            <div style="background: #1E293B; border: 1px dashed #475569; border-radius: 8px; padding: 24px; text-align: center; color: #94A3B8;">
-              左側のマイクボタンを押して、上の英文を読み上げてください。<br><br>
-              ポーズ非感受性の2D解析（R<sub>CF</sub> × Schwa P75）および診断機能語の実測テーブルにより、あなたのストレス拍が正確に可視化されます。
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""<div style="background: #0F172A; border: 1px dashed #334155; border-radius: 8px; padding: 24px; text-align: center; color: #94A3B8;">
+左側のマイクボタンを押して、英文を読み上げてください。<br><br>
+2D ストライクゾーン (R_CF × Schwa P75) による客観的な判定が行われます。
+</div>""", unsafe_allow_html=True)
 
         if not is_custom_now and os.path.exists(active_bm["ref_audio"]):
-            st.markdown("<div style='font-size: 0.95rem; font-weight: bold; color: #94A3B8; margin-top: 10px; margin-bottom: 4px;'>🔊 ネイティブお手本音声</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 0.9rem; font-weight: bold; color: #94A3B8; margin-top: 8px; margin-bottom: 4px;'>ネイティブお手本音声</div>", unsafe_allow_html=True)
             with open(active_bm["ref_audio"], "rb") as rf:
                 st.audio(rf.read(), format="audio/wav")
+
+    # =====================================================================
+    # 最下段：発話実測マップ (単語クリックで該当区間の音声を即時再生)
+    # =====================================================================
+    if st.session_state.e2_eval_history and st.session_state.e2_audio_bytes:
+        latest_wb = st.session_state.e2_eval_history[-1].get("word_breakdown", [])
+        trial_num = len(st.session_state.e2_eval_history)
+        map_html = build_clickable_word_map_html(latest_wb, st.session_state.e2_audio_bytes, trial_num)
+        components.html(map_html, height=155, scrolling=False)

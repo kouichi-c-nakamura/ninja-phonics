@@ -133,4 +133,23 @@ div[data-testid="stTextArea"] textarea {
     color: #F0F9FF;
     margin-bottom: 8px;
 }
+/* アクティブなタブボタン (kind="primary") の先頭に手裏剣アイコンを表示 */
+div.stButton > button[kind="primary"]::before {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+    vertical-align: -1.5px;
+    background-color: #BAE6FD; /* ペールホワイト〜淡い水色 */
+    /* 中央に穴が開いた4方手裏剣のベクターマスク */
+    -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill-rule="evenodd" d="M50 0 C50 30 70 50 100 50 C70 50 50 70 50 100 C50 70 30 50 0 50 C30 50 50 30 50 0 Z M50 42 A8 8 0 1 0 50 58 A8 8 0 1 0 50 42 Z"/></svg>');
+    mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill-rule="evenodd" d="M50 0 C50 30 70 50 100 50 C70 50 50 70 50 100 C50 70 30 50 0 50 C30 50 50 30 50 0 Z M50 42 A8 8 0 1 0 50 58 A8 8 0 1 0 50 42 Z"/></svg>');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
 </style>"""

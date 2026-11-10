@@ -1471,15 +1471,25 @@ else:
     card_col1, card_col2 = st.columns([1.45, 1.05])
 
     with card_col1:
-        # マイク録音入力
         e2_input = st.audio_input("この英文を録音してプロソディ診断を実行")
 
-        # 音声ファイルアップロード入力 (m4a, mp3, wav 対応)
         e2_uploaded_file = st.file_uploader(
             "または音声ファイルをアップロード (WAV / MP3 / M4A)",
             type=["wav", "mp3", "m4a"],
             key="e2_file_uploader_widget"
         )
+
+        # 録音またはアップロードされた音声が存在する場合、ダウンロードボタンを表示
+        if st.session_state.e2_audio_bytes is not None:
+            dl_col1, dl_col2 = st.columns([1.8, 1.2])
+            with dl_col2:
+                st.download_button(
+                    label="録音音声を保存 (.wav)",
+                    data=st.session_state.e2_audio_bytes,
+                    file_name=f"NinjaPhonetics_{st.session_state.e2_selected_passage}_recording.wav",
+                    mime="audio/wav",
+                    use_container_width=True
+                )
 
         # どちらか新しく入力された方のバイトデータを取得
         incoming_audio_bytes = None

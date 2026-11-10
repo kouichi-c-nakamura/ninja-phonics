@@ -84,3 +84,4 @@ recordings/
 # Jupyter Notebook キャッシュ
 .ipynb_checkpoints
 temp.ipynb
+benchmarks/P1_northwind/word_raw_cache.csv

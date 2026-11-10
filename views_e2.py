@@ -132,8 +132,8 @@ function draw() {{
   const isViolin = (D.view_mode === "word_swarm");
   const wordsCount = (D.words_alpha || []).length;
   
-  // 単語間隔3倍化 (280px / word)
-  const minWidth = isViolin ? Math.max(wrapper.clientWidth, wordsCount * 280 + 120) : wrapper.clientWidth;
+  // 単語と単語の間に十分な余白（スロット幅: 140px）
+  const minWidth = isViolin ? Math.max(wrapper.clientWidth, wordsCount * 140 + 80) : wrapper.clientWidth;
   const W = minWidth;
   const H = wrapper.clientHeight;
 
@@ -284,25 +284,27 @@ function drawViolinView(W, H) {{
 
   function yToPx(y) {{ return (H - MARGIN.bottom) - ((Math.min(y, yMax) - yMin) / (yMax - yMin)) * plotH; }}
 
+  // Y軸目盛り線
   for (let y = 0; y <= 150; y += 25) {{
     const py = yToPx(y);
-    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)"; ctx.lineWidth = 1.0;
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.10)"; ctx.lineWidth = 1.0;
     ctx.beginPath(); ctx.moveTo(MARGIN.left, py); ctx.lineTo(W - MARGIN.right, py); ctx.stroke();
     ctx.fillStyle = "#64748B"; ctx.font = "12px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     ctx.fillText(y + "ms", MARGIN.left - 8, py);
   }}
 
+  // 45ms 目標線 (緑) / 65ms 警戒線 (赤) - 背景ガイド
   const y45 = yToPx(45), y65 = yToPx(65);
-  ctx.strokeStyle = "rgba(16, 185, 129, 0.65)"; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "rgba(16, 185, 129, 0.35)"; ctx.lineWidth = 1.2; ctx.setLineDash([5, 4]);
   ctx.beginPath(); ctx.moveTo(MARGIN.left, y45); ctx.lineTo(W - MARGIN.right, y45); ctx.stroke();
-  ctx.strokeStyle = "rgba(239, 68, 68, 0.65)";
+  ctx.strokeStyle = "rgba(239, 68, 68, 0.35)";
   ctx.beginPath(); ctx.moveTo(MARGIN.left, y65); ctx.lineTo(W - MARGIN.right, y65); ctx.stroke();
   ctx.setLineDash([]);
 
   ctx.strokeStyle = "#334155"; ctx.lineWidth = 1.5;
   ctx.strokeRect(MARGIN.left, MARGIN.top, plotW, plotH);
   ctx.fillStyle = "#CBD5E1"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText("弱化必須語 (左: Native群バイオリン / 中: あなたの実測点 / 右: カタカナ読みバイオリン)", MARGIN.left + plotW / 2, H - 12);
+  ctx.fillText("弱化必須語 (緑: Native群 / 赤: カタカナ読み / 点: あなたの実測値)", MARGIN.left + plotW / 2, H - 12);
   ctx.save(); ctx.translate(18, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2);
   ctx.fillText("母音持続時間 [ms]", 0, 0); ctx.restore();
 
@@ -316,14 +318,7 @@ function drawViolinView(W, H) {{
   words.forEach((w, idx) => {{
     const cx = MARGIN.left + (idx + 0.5) * colW;
 
-    if (idx > 0) {{
-      const divX = MARGIN.left + idx * colW;
-      ctx.strokeStyle = "rgba(30, 41, 59, 0.7)";
-      ctx.lineWidth = 1.0;
-      ctx.beginPath(); ctx.moveTo(divX, MARGIN.top); ctx.lineTo(divX, H - MARGIN.bottom); ctx.stroke();
-    }}
-
-    // X軸単語ラベル (フォントサイズ2倍: 25px)
+    // X軸単語ラベル (25px 太字) - 単語ユニットの中心真下に配置
     ctx.fillStyle = "#F0F9FF";
     ctx.font = "bold 25px sans-serif";
     ctx.textAlign = "center";
@@ -333,12 +328,15 @@ function drawViolinView(W, H) {{
     const bInfo = D.word_bench[w] || {{ native: [], mora: [] }};
     const uPts = D.user_word_raw[w] || [];
 
-    const halfW = Math.min(36, colW * 0.16);
-    const natCenterX = cx - colW * 0.28;
-    const moraCenterX = cx + colW * 0.28;
-    const userCenterX = cx;
+    // ★幾何設計の要点:
+    // halfW = 13px (バイオリンの太さ) に対し、オフセットを ±13px に設定
+    // これにより、左の山と右の山が「ほぼ触れ合う (almost touching)」超接近配置になります。
+    const halfW = 13.0;
+    const natCenterX = cx - 13.0;  // 緑バイオリンの中心
+    const moraCenterX = cx + 13.0; // 赤バイオリンの中心
+    const userCenterX = cx;        // あなたの実測点 (2つの山の接合部・中心)
 
-    // 1. 左側：Native群 (エメラルド緑バイオリン)
+    // 1. 左側：Native群 (うっすら緑バイオリン)
     if (showBenchmark && bInfo.native && bInfo.native.length >= 2) {{
       const densN = gaussianKDE(bInfo.native, yGrid, 8.5);
       let maxD = 0;
@@ -356,19 +354,19 @@ function drawViolinView(W, H) {{
           ctx.lineTo(px, py);
         }}
         ctx.closePath();
-        ctx.fillStyle = "rgba(16, 185, 129, 0.28)"; ctx.fill();
-        ctx.strokeStyle = "#10B981"; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.fillStyle = "rgba(16, 185, 129, 0.12)"; ctx.fill();
+        ctx.strokeStyle = "rgba(16, 185, 129, 0.25)"; ctx.lineWidth = 1.0; ctx.stroke();
 
         const medN = getMedian(bInfo.native);
-        ctx.strokeStyle = "#A7F3D0"; ctx.lineWidth = 2.5;
+        ctx.strokeStyle = "rgba(167, 243, 208, 0.40)"; ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(natCenterX - halfW * 0.85, yToPx(medN));
-        ctx.lineTo(natCenterX + halfW * 0.85, yToPx(medN));
+        ctx.moveTo(natCenterX - halfW * 0.7, yToPx(medN));
+        ctx.lineTo(natCenterX + halfW * 0.7, yToPx(medN));
         ctx.stroke();
       }}
     }}
 
-    // 2. 右側：カタカナ読み群 (ローズ赤バイオリン)
+    // 2. 右側：カタカナ読み群 (うっすら赤バイオリン)
     if (showBenchmark && bInfo.mora && bInfo.mora.length >= 2) {{
       const densM = gaussianKDE(bInfo.mora, yGrid, 8.5);
       let maxDm = 0;
@@ -386,26 +384,34 @@ function drawViolinView(W, H) {{
           ctx.lineTo(px, py);
         }}
         ctx.closePath();
-        ctx.fillStyle = "rgba(239, 68, 68, 0.22)"; ctx.fill();
-        ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.fillStyle = "rgba(239, 68, 68, 0.10)"; ctx.fill();
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.22)"; ctx.lineWidth = 1.0; ctx.stroke();
 
         const medM = getMedian(bInfo.mora);
-        ctx.strokeStyle = "#FECACA"; ctx.lineWidth = 2.5;
+        ctx.strokeStyle = "rgba(254, 202, 202, 0.40)"; ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(moraCenterX - halfW * 0.85, yToPx(medM));
-        ctx.lineTo(moraCenterX + halfW * 0.85, yToPx(medM));
+        ctx.moveTo(moraCenterX - halfW * 0.7, yToPx(medM));
+        ctx.lineTo(moraCenterX + halfW * 0.7, yToPx(medM));
         ctx.stroke();
       }}
     }}
 
-    // 3. 中央：あなたの発話点
-    uPts.forEach((v, j) => {{
+    // 3. 中央：あなたの発話点 (主役：緑と赤の接触面・谷間にくっきり配置)
+    uPts.forEach((v) => {{
       const uy = yToPx(v);
       const col = v <= 48 ? "#10B981" : (v <= 65 ? "#F59E0B" : "#EF4444");
-      ctx.fillStyle = col; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 2.2;
-      ctx.beginPath(); ctx.arc(userCenterX, uy, 6.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      
+      // グロー効果
+      ctx.fillStyle = col + "44";
+      ctx.beginPath(); ctx.arc(userCenterX, uy, 11.0, 0, 2 * Math.PI); ctx.fill();
+
+      // 白枠実測点本体
+      ctx.fillStyle = col; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(userCenterX, uy, 6.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+
+      // 数値ラベル
       ctx.fillStyle = "#F8FAFC"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
-      ctx.fillText(`${{Math.round(v)}}`, userCenterX, uy - 10);
+      ctx.fillText(`${{Math.round(v)}}`, userCenterX, uy - 11);
     }});
   }});
 }}

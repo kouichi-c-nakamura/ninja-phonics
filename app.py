@@ -1471,23 +1471,47 @@ else:
     card_col1, card_col2 = st.columns([1.45, 1.05])
 
     with card_col1:
+        # マイク録音入力
         e2_input = st.audio_input("この英文を録音してプロソディ診断を実行")
+
+        # 音声ファイルアップロード入力 (m4a, mp3, wav 対応)
+        e2_uploaded_file = st.file_uploader(
+            "または音声ファイルをアップロード (WAV / MP3 / M4A)",
+            type=["wav", "mp3", "m4a"],
+            key="e2_file_uploader_widget"
+        )
+
+        # どちらか新しく入力された方のバイトデータを取得
+        incoming_audio_bytes = None
         if e2_input is not None:
-            new_e2_bytes = e2_input.read()
-            if new_e2_bytes != st.session_state.e2_audio_bytes:
-                st.session_state.e2_audio_bytes = new_e2_bytes
-                tmp_wav = "tmp_e2_eval.wav"
-                with open(tmp_wav, "wb") as f:
-                    f.write(new_e2_bytes)
-                eval_res = evaluate_user_rhythm(
-                    tmp_wav,
-                    st.session_state.e2_selected_passage,
-                    st.session_state.e2_custom_text
-                )
-                if os.path.exists(tmp_wav):
-                    os.remove(tmp_wav)
-                if "error" not in eval_res:
-                    st.session_state.e2_eval_history.append(eval_res)
+            raw_rec = e2_input.read()
+            if raw_rec != st.session_state.get("e2_last_rec_bytes"):
+                st.session_state["e2_last_rec_bytes"] = raw_rec
+                incoming_audio_bytes = raw_rec
+        elif e2_uploaded_file is not None:
+            raw_upl = e2_uploaded_file.read()
+            if raw_upl != st.session_state.get("e2_last_upl_bytes"):
+                st.session_state["e2_last_upl_bytes"] = raw_upl
+                incoming_audio_bytes = raw_upl
+
+        # 音声データが更新された場合にアライメント＆プロソディ解析を実行
+        if incoming_audio_bytes is not None and incoming_audio_bytes != st.session_state.e2_audio_bytes:
+            st.session_state.e2_audio_bytes = incoming_audio_bytes
+            
+            # 形式を問わず一度 pydub 経由で一時標準 WAV として保存
+            audio_arr, sr = decode_audio_bytes(incoming_audio_bytes)
+            tmp_wav = "tmp_e2_eval.wav"
+            sf.write(tmp_wav, audio_arr, sr, format="WAV")
+
+            eval_res = evaluate_user_rhythm(
+                tmp_wav,
+                st.session_state.e2_selected_passage,
+                st.session_state.e2_custom_text
+            )
+            if os.path.exists(tmp_wav):
+                os.remove(tmp_wav)
+            if "error" not in eval_res:
+                st.session_state.e2_eval_history.append(eval_res)
 
         word_bench_dist = get_benchmark_word_raw_distributions(st.session_state.e2_selected_passage) if not is_custom_now else {}
 

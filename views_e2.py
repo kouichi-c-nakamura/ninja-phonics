@@ -220,21 +220,28 @@ function drawScatter2D(W, H) {{
   }}
 
   if (!D.is_custom_mode) {{
+    // 外側 95% ストライクゾーン楕円 (より控えめなグラウンド表示)
     drawEllipse(D.mu_x, D.mu_y, D.v1_95, D.v2_95);
-    ctx.fillStyle = "rgba(16, 185, 129, 0.13)"; ctx.fill();
-    ctx.strokeStyle = "#10B981"; ctx.lineWidth = 2.0; ctx.setLineDash([5, 4]); ctx.stroke();
+    ctx.fillStyle = "rgba(16, 185, 129, 0.07)"; ctx.fill();
+    ctx.strokeStyle = "rgba(16, 185, 129, 0.45)"; ctx.lineWidth = 1.2; ctx.setLineDash([5, 4]); ctx.stroke();
 
+    // 内側 中心CI楕円
     drawEllipse(D.mu_x, D.mu_y, D.v1_ci, D.v2_ci);
-    ctx.fillStyle = "rgba(56, 189, 248, 0.30)"; ctx.fill();
-    ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 1.2; ctx.setLineDash([]); ctx.stroke();
+    ctx.fillStyle = "rgba(56, 189, 248, 0.14)"; ctx.fill();
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.50)"; ctx.lineWidth = 0.9; ctx.setLineDash([]); ctx.stroke();
 
+    // ベンチマーク点 (うっすら背景に溶け込むサイズと透明度へ抑制)
     if (showBenchmark && D.benchmark && D.benchmark.length > 0) {{
       D.benchmark.forEach(b => {{
         const bxVal = isRcf ? b.rcf : b.pct_v;
         const bx = xToPx(bxVal), by = yToPx(b.schwa_p75_ms);
-        ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = b.color;
-        ctx.strokeStyle = "#090D16"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(bx, by, 5.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = 0.28; // 0.85 から 0.28 に引き下げて控えめに表示
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.arc(bx, by, 3.2, 0, 2 * Math.PI); // 5.2px から 3.2px に縮小
+        ctx.fill();
+        ctx.restore();
       }});
     }}
   }}

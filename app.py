@@ -38,7 +38,7 @@ if "e2_last_analyzed_text" not in st.session_state:
     st.session_state.e2_last_analyzed_text = st.session_state.e2_custom_text
 if "e2_audio_bytes" not in st.session_state: st.session_state.e2_audio_bytes = None
 if "e2_eval_history" not in st.session_state: st.session_state.e2_eval_history = []
-if "e2_plot_view" not in st.session_state: st.session_state.e2_plot_view = "metrics_1d"
+if "e2_plot_view" not in st.session_state: st.session_state.e2_plot_view = "scatter2d"
 
 # ブランドヘッダー
 st.markdown(

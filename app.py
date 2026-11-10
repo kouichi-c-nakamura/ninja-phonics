@@ -1,5 +1,5 @@
 """
-app.py: NinjaPhonetics Biofeedback Scope メインエントリーポイント
+app.py: NinjaPhonetics Biofeedback Scope
 """
 import os
 import re
@@ -38,7 +38,7 @@ if "e2_last_analyzed_text" not in st.session_state:
     st.session_state.e2_last_analyzed_text = st.session_state.e2_custom_text
 if "e2_audio_bytes" not in st.session_state: st.session_state.e2_audio_bytes = None
 if "e2_eval_history" not in st.session_state: st.session_state.e2_eval_history = []
-if "e2_plot_view" not in st.session_state: st.session_state.e2_plot_view = "scatter2d"
+if "e2_plot_view" not in st.session_state: st.session_state.e2_plot_view = "word_swarm"
 
 # ブランドヘッダー
 st.markdown(
@@ -48,7 +48,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# モード切替タブ
 tab_m1, tab_m2, _ = st.columns([1.5, 1.5, 3.0])
 with tab_m1:
     if st.button("A1: 音素ホルマント・スコープ (R / L)", type="primary" if st.session_state.app_mode == "RL" else "secondary", use_container_width=True):
@@ -161,32 +160,36 @@ else:
 
     card_col1, card_col2 = st.columns([1.45, 1.05])
     with card_col1:
-        e2_input = st.audio_input("この英文を録音してプロソディ診断を実行")
-        e2_uploaded_file = st.file_uploader("または音声ファイルをアップロード (WAV / MP3 / M4A)", type=["wav", "mp3", "m4a"], key="e2_file_uploader_widget")
+        e2_input = st.audio_input("この英文を録音してプロソディ診断を実行", key="e2_audio_in")
+        e2_uploaded_file = st.file_uploader("または音声ファイルをアップロード (WAV / MP3 / M4A)", type=["wav", "mp3", "m4a"], key="e2_file_in")
+
+        # 録音・アップロードデータの抽出
+        active_bytes = None
+        if e2_input is not None:
+            active_bytes = e2_input.getvalue()
+        elif e2_uploaded_file is not None:
+            active_bytes = e2_uploaded_file.getvalue()
+
+        # 新規データが届いた場合のみ解析を実行
+        if active_bytes and active_bytes != st.session_state.get("e2_last_seen_bytes"):
+            st.session_state["e2_last_seen_bytes"] = active_bytes
+            st.session_state.e2_audio_bytes = active_bytes
+
+            audio_arr, sr = decode_audio_bytes(active_bytes)
+            tmp_wav = f"tmp_e2_active.wav"
+            sf.write(tmp_wav, audio_arr, sr, format="WAV")
+
+            eval_res = evaluate_user_rhythm(tmp_wav, st.session_state.e2_selected_passage, st.session_state.e2_custom_text)
+            if os.path.exists(tmp_wav):
+                try: os.remove(tmp_wav)
+                except Exception: pass
+
+            st.session_state.e2_eval_history.append(eval_res)
 
         if st.session_state.e2_audio_bytes is not None:
             _, dl_col2 = st.columns([1.8, 1.2])
             with dl_col2:
                 st.download_button(label="録音音声を保存 (.wav)", data=st.session_state.e2_audio_bytes, file_name=f"NinjaPhonetics_{st.session_state.e2_selected_passage}_recording.wav", mime="audio/wav", use_container_width=True)
-
-        incoming_bytes = None
-        if e2_input is not None:
-            raw_rec = e2_input.read()
-            if raw_rec != st.session_state.get("e2_last_rec_bytes"):
-                st.session_state["e2_last_rec_bytes"] = incoming_bytes = raw_rec
-        elif e2_uploaded_file is not None:
-            raw_upl = e2_uploaded_file.read()
-            if raw_upl != st.session_state.get("e2_last_upl_bytes"):
-                st.session_state["e2_last_upl_bytes"] = incoming_bytes = raw_upl
-
-        if incoming_bytes is not None and incoming_bytes != st.session_state.e2_audio_bytes:
-            st.session_state.e2_audio_bytes = incoming_bytes
-            audio_arr, sr = decode_audio_bytes(incoming_bytes)
-            tmp_wav = "tmp_e2_eval.wav"
-            sf.write(tmp_wav, audio_arr, sr, format="WAV")
-            eval_res = evaluate_user_rhythm(tmp_wav, st.session_state.e2_selected_passage, st.session_state.e2_custom_text)
-            if os.path.exists(tmp_wav): os.remove(tmp_wav)
-            if "error" not in eval_res: st.session_state.e2_eval_history.append(eval_res)
 
         word_bench_dist = get_benchmark_word_raw_distributions(st.session_state.e2_selected_passage) if not is_custom_now else {}
         radar_html = build_e2_multiview_canvas_html(
@@ -211,35 +214,35 @@ else:
         if st.session_state.e2_eval_history:
             latest_ev = st.session_state.e2_eval_history[-1]
             trial_no = len(st.session_state.e2_eval_history)
-            dm_str = f"{latest_ev['d_m_sq']} (≤9.21 合格)" if latest_ev["d_m_sq"] is not None else "自由文判定"
-            c_diag = "#10B981" if latest_ev["diag_median_ms"] <= 48.0 else ("#F59E0B" if latest_ev["diag_median_ms"] <= 65.0 else "#EF4444")
-            c_schwa = "#10B981" if latest_ev["schwa_p75_ms"] <= 65.0 else "#EF4444"
-            c_rcf = "#10B981" if latest_ev["r_cf"] >= 1.30 else "#EF4444"
-            c_npvi = "#10B981" if 40.0 <= latest_ev["npvi_clipped"] <= 62.0 else "#F59E0B"
+            dm_str = f"{latest_ev.get('d_m_sq', 'N/A')} (≤9.21 合格)" if latest_ev.get("d_m_sq") is not None else "自由文判定"
+            c_diag = "#10B981" if latest_ev.get("diag_median_ms", 99) <= 48.0 else ("#F59E0B" if latest_ev.get("diag_median_ms", 99) <= 65.0 else "#EF4444")
+            c_schwa = "#10B981" if latest_ev.get("schwa_p75_ms", 99) <= 65.0 else "#EF4444"
+            c_rcf = "#10B981" if latest_ev.get("r_cf", 0) >= 1.30 else "#EF4444"
+            c_npvi = "#10B981" if 40.0 <= latest_ev.get("npvi_clipped", 0) <= 62.0 else "#F59E0B"
 
             summary_html = (
                 f'<div style="background: #0F172A; border: 1px solid #1E293B; border-radius: 8px; padding: 12px; margin-top: 6px; margin-bottom: 10px;">'
                 f'<div style="display: flex; justify-content: space-between; align-items: baseline;">'
                 f'<span style="font-size: 0.82rem; color: #94A3B8; font-weight: 600;">VERDICT (Trial #{trial_no})</span>'
                 f'<span style="font-size: 0.78rem; color: #64748B;">蓄積データ: {trial_no} 件</span></div>'
-                f'<div style="font-size: 1.45rem; font-weight: 800; color: {latest_ev["status_color"]}; margin-bottom: 8px;">{latest_ev["verdict"]}</div>'
+                f'<div style="font-size: 1.45rem; font-weight: 800; color: {latest_ev.get("status_color", "#EF4444")}; margin-bottom: 8px;">{latest_ev.get("verdict", "OFF TARGET")}</div>'
                 f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
                 f'<span style="color: #BAE6FD; font-size: 0.86rem; font-weight: 700;">弱化必須語 中央値 (V<sub>diag</sub>):</span>'
-                f'<span style="font-weight: 800; color: {c_diag};">{latest_ev["diag_median_ms"]} ms <small style="font-size:0.75rem; color:#94A3B8;">(目標 ≤45ms)</small></span></div>'
+                f'<span style="font-weight: 800; color: {c_diag};">{latest_ev.get("diag_median_ms", 0)} ms <small style="font-size:0.75rem; color:#94A3B8;">(目標 ≤45ms)</small></span></div>'
                 f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
                 f'<span style="color: #94A3B8; font-size: 0.86rem;">弱母音持続時間 (Schwa P75):</span>'
-                f'<span style="font-weight: bold; color: {c_schwa};">{latest_ev["schwa_p75_ms"]:.1f} ms <small style="font-size:0.75rem; color:#94A3B8;">(目標 ≤65ms)</small></span></div>'
+                f'<span style="font-weight: bold; color: {c_schwa};">{latest_ev.get("schwa_p75_ms", 0):.1f} ms <small style="font-size:0.75rem; color:#94A3B8;">(目標 ≤65ms)</small></span></div>'
                 f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
                 f'<span style="color: #94A3B8; font-size: 0.86rem;">内容語/機能語比 (R<sub>CF</sub>):</span>'
-                f'<span style="font-weight: bold; color: {c_rcf};">{latest_ev["r_cf"]}x <small style="font-size:0.75rem; color:#94A3B8;">(内容 {latest_ev["mean_c_ms"]}ms / 機能 {latest_ev["mean_f_ms"]}ms)</small></span></div>'
+                f'<span style="font-weight: bold; color: {c_rcf};">{latest_ev.get("r_cf", 0)}x <small style="font-size:0.75rem; color:#94A3B8;">(内容 {latest_ev.get("mean_c_ms", 0)}ms / 機能 {latest_ev.get("mean_f_ms", 0)}ms)</small></span></div>'
                 f'<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #1E293B; padding-bottom: 4px; margin-bottom: 4px;">'
                 f'<span style="color: #94A3B8; font-size: 0.86rem;">リズム伸縮指数 (nPVI-V):</span>'
-                f'<span style="font-weight: bold; color: {c_npvi};">{latest_ev["npvi_clipped"]} <small style="font-size:0.75rem; color:#94A3B8;">(適正 40〜60)</small></span></div>'
+                f'<span style="font-weight: bold; color: {c_npvi};">{latest_ev.get("npvi_clipped", 0)} <small style="font-size:0.75rem; color:#94A3B8;">(適正 40〜60)</small></span></div>'
                 f'<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">'
                 f'<span style="color: #94A3B8; font-size: 0.86rem;">2D Mahalanobis (D<sub>M</sub><sup>2</sup>):</span>'
                 f'<span style="font-weight: bold; color: #F8FAFC;">{dm_str}</span></div>'
                 f'<div style="background: #090D16; border-radius: 6px; padding: 8px; font-size: 0.83rem; color: #E2E8F0; line-height: 1.4;">'
-                f'💡 <b>フィードバック:</b> {latest_ev["feedback"]}</div></div>'
+                f'💡 <b>フィードバック:</b> {latest_ev.get("feedback", "")}</div></div>'
             )
             st.markdown(summary_html, unsafe_allow_html=True)
 
@@ -272,7 +275,7 @@ th {{ position: sticky; top: 0; background: #0F172A; color: #94A3B8; font-size: 
                 components.html(table_html, height=185, scrolling=False)
 
             if st.button("この課題の試行履歴をクリア", use_container_width=True):
-                st.session_state.e2_eval_history, st.session_state.e2_audio_bytes = [], None; st.rerun()
+                st.session_state.e2_eval_history, st.session_state.e2_audio_bytes, st.session_state["e2_last_seen_bytes"] = [], None, None; st.rerun()
         else:
             st.markdown("""<div style="background: #0F172A; border: 1px dashed #334155; border-radius: 8px; padding: 24px; text-align: center; color: #94A3B8;">
 左側のマイクボタンを押して、英文を読み上げてください。<br><br>

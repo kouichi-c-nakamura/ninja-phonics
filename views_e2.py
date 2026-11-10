@@ -1,5 +1,5 @@
 """
-views_e2.py: E2 プロソディ診断用 HTML/Canvas/JS 描画生成
+views_e2.py: E2 Prosody Diagnostics Canvas/HTML Generator
 """
 import json
 import base64
@@ -7,7 +7,7 @@ import numpy as np
 from constants import E2_PASSAGE_BENCHMARKS
 from audio_processing import load_benchmark_points
 
-def build_e2_multiview_canvas_html(passage_key: str, eval_history: list = None, is_custom_mode: bool = False, view_mode: str = "scatter2d", word_bench_dist: dict = None) -> str:
+def build_e2_multiview_canvas_html(passage_key: str, eval_history: list = None, is_custom_mode: bool = False, view_mode: str = "word_swarm", word_bench_dist: dict = None) -> str:
     bm = E2_PASSAGE_BENCHMARKS[passage_key]
     x_metric = bm.get("x_metric", "pct_v")
     mu, cov = bm["mu"], bm["cov"]
@@ -65,24 +65,23 @@ def build_e2_multiview_canvas_html(passage_key: str, eval_history: list = None, 
     view_titles = {
         "scatter2d": f"2D ストライクゾーン (試行回数: {len(history_list)})",
         "word_swarm": "弱化必須語 KDEバイオリン分布 (左: Native / 中: あなた / 右: カタカナ読み)",
-        "metrics_1d": "各プロソディ指標の生データ分布比較 (Swarm ストリップ)"
+        "metrics_1d": "各プロソディ指標の垂直バイオリン比較 (左: Native / 中: あなた / 右: カタカナ読み)"
     }
     header_title = view_titles.get(view_mode, "2D ストライクゾーン")
 
-    return f"""<!DOCTYPE html><html><head><style>
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 body {{ margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif; background: #0B0F19; color: #E2E8F0; user-select: none; overflow: hidden; }}
 .toolbar {{ display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: #0F172A; border: 1px solid #1E293B; border-radius: 8px 8px 0 0; }}
-.toolbar-title {{ font-size: 13px; font-weight: 700; color: #BAE6FD; display: flex; align-items: center; gap: 8px; }}
+.toolbar-title {{ font-size: 13px; font-weight: 700; color: #BAE6FD; }}
 .btn-group {{ display: flex; align-items: center; gap: 8px; }}
-button {{ font-family: inherit; font-size: 12px; font-weight: bold; padding: 4px 11px; border-radius: 5px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; transition: all 0.15s; }}
+button {{ font-family: inherit; font-size: 12px; font-weight: bold; padding: 4px 11px; border-radius: 5px; border: 1px solid #334155; cursor: pointer; background: #1E293B; color: #E2E8F0; }}
 button:hover {{ background: #334155; color: #FFFFFF; }}
 button.toggle-active {{ background: #172554; color: #BAE6FD; border-color: #38BDF8; }}
 .scroll-container {{ position: relative; width: 100%; height: 420px; background: #090D16; border: 1px solid #1E293B; border-top: none; border-radius: 0 0 8px 8px; overflow-x: auto; overflow-y: hidden; }}
 .scroll-container::-webkit-scrollbar {{ height: 8px; }}
 .scroll-container::-webkit-scrollbar-track {{ background: #090D16; }}
 .scroll-container::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 4px; }}
-.scroll-container::-webkit-scrollbar-thumb:hover {{ background: #475569; }}
-canvas {{ display: block; }}
+#radar-canvas {{ position: absolute; left: 0; top: 0; }}
 </style></head><body>
 <div class="toolbar">
   <div class="toolbar-title"><span>{header_title}</span></div>
@@ -103,16 +102,23 @@ const btnDl = document.getElementById('btn-dl-radar');
 const btnToggleBm = document.getElementById('btn-toggle-bm');
 let showBenchmark = true;
 
-function gaussianKDE(points, yGrid, bw = 8.5) {{
+function gaussianKDE(points, yGrid, bw) {{
+  if (!bw) bw = 8.5;
   if (!points || points.length === 0) return new Float32Array(yGrid.length);
-  const n = points.length;
+  const cleanPts = [];
+  for (let i = 0; i < points.length; i++) {{
+    const val = Number(points[i]);
+    if (!isNaN(val)) cleanPts.push(val);
+  }}
+  if (cleanPts.length === 0) return new Float32Array(yGrid.length);
+  const n = cleanPts.length;
   const factor = 1.0 / (Math.sqrt(2 * Math.PI) * bw * n);
   const density = new Float32Array(yGrid.length);
   for (let j = 0; j < yGrid.length; j++) {{
     const y = yGrid[j];
     let sum = 0;
     for (let i = 0; i < n; i++) {{
-      const d = (y - points[i]) / bw;
+      const d = (y - cleanPts[i]) / bw;
       sum += Math.exp(-0.5 * d * d);
     }}
     density[j] = sum * factor;
@@ -122,23 +128,38 @@ function gaussianKDE(points, yGrid, bw = 8.5) {{
 
 function getMedian(arr) {{
   if (!arr || arr.length === 0) return 0;
-  const s = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 !== 0 ? s[mid] : (s[mid - 1] + s[mid]) / 2.0;
+  const clean = [];
+  for (let i = 0; i < arr.length; i++) {{
+    const val = Number(arr[i]);
+    if (!isNaN(val)) clean.push(val);
+  }}
+  if (clean.length === 0) return 0;
+  clean.sort((a, b) => a - b);
+  const mid = Math.floor(clean.length / 2);
+  return clean.length % 2 !== 0 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2.0;
 }}
 
 function draw() {{
   const dpr = window.devicePixelRatio || 1;
-  const isViolin = (D.view_mode === "word_swarm");
+  const isWordSwarm = (D.view_mode === "word_swarm");
+  const isMetrics1D = (D.view_mode === "metrics_1d");
   const wordsCount = (D.words_alpha || []).length;
   
-  // 単語と単語の間に十分な余白（スロット幅: 140px）
-  const minWidth = isViolin ? Math.max(wrapper.clientWidth, wordsCount * 140 + 80) : wrapper.clientWidth;
-  const W = minWidth;
-  const H = wrapper.clientHeight;
+  const clientW = wrapper.clientWidth > 0 ? wrapper.clientWidth : 750;
+  const clientH = 420;
 
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
+  let minWidth = clientW;
+  if (isWordSwarm) {{
+    minWidth = Math.max(clientW, wordsCount * 140 + 80);
+  }} else if (isMetrics1D) {{
+    minWidth = Math.max(clientW, 700);
+  }}
+
+  const W = minWidth;
+  const H = clientH;
+
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
   canvas.style.width = W + "px";
   canvas.style.height = H + "px";
 
@@ -146,15 +167,15 @@ function draw() {{
   ctx.fillStyle = "#090D16";
   ctx.fillRect(0, 0, W, H);
 
-  if (isViolin) drawViolinView(W, H);
-  else if (D.view_mode === "metrics_1d") drawMetrics1DSwarm(W, H);
+  if (isWordSwarm) drawViolinView(W, H);
+  else if (isMetrics1D) drawMetrics1DVertical(W, H);
   else drawScatter2D(W, H);
 }}
 
 function drawScatter2D(W, H) {{
   const MARGIN = {{ left: 78, right: 28, top: 20, bottom: 46 }};
-  const plotW = W - MARGIN.left - MARGIN.right;
-  const plotH = H - MARGIN.top - MARGIN.bottom;
+  const plotW = Math.max(10, W - MARGIN.left - MARGIN.right);
+  const plotH = Math.max(10, H - MARGIN.top - MARGIN.bottom);
   const isRcf = (D.x_metric === "rcf");
   function xToPx(x) {{ return MARGIN.left + ((x - D.x_min) / (D.x_max - D.x_min)) * plotW; }}
   function yToPx(y) {{ return (H - MARGIN.bottom) - ((y - D.y_min) / (D.y_max - D.y_min)) * plotH; }}
@@ -215,76 +236,36 @@ function drawScatter2D(W, H) {{
         ctx.strokeStyle = "#090D16"; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(bx, by, 5.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); ctx.restore();
       }});
-
-      const legX = W - MARGIN.right - 150, legY = MARGIN.top + 8;
-      ctx.fillStyle = "rgba(9, 13, 22, 0.88)"; ctx.fillRect(legX, legY, 142, 68);
-      ctx.strokeStyle = "#1E293B"; ctx.strokeRect(legX, legY, 142, 68);
-      ctx.font = "10.5px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      const items = [
-        ["#38BDF8", "US-Native (米)"],
-        ["#10B981", "UK-Native (英)"],
-        ["#F59E0B", "JP-Accented"],
-        ["#EF4444", "カタカナ読み"]
-      ];
-      items.forEach((it, i) => {{
-        const iy = legY + 12 + i * 15;
-        ctx.fillStyle = it[0]; ctx.beginPath(); ctx.arc(legX + 12, iy, 4.0, 0, 2 * Math.PI); ctx.fill();
-        ctx.fillStyle = "#CBD5E1"; ctx.fillText(it[1], legX + 22, iy);
-      }});
     }}
-  }} else {{
-    const zx1 = xToPx(isRcf ? 1.30 : 35.0), zx2 = xToPx(isRcf ? 1.85 : 49.0);
-    const zy1 = yToPx(65.0), zy2 = yToPx(35.0);
-    ctx.fillStyle = "rgba(16, 185, 129, 0.14)"; ctx.fillRect(zx1, zy1, zx2 - zx1, zy2 - zy1);
-    ctx.strokeStyle = "#10B981"; ctx.lineWidth = 2.0; ctx.setLineDash([6, 4]); ctx.strokeRect(zx1, zy1, zx2 - zx1, zy2 - zy1); ctx.setLineDash([]);
-    ctx.fillStyle = "#10B981"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText("ストレス拍合格領域 (R_CF ≥ 1.3x, Schwa ≤ 65ms)", zx1 + 8, zy1 + 16);
   }}
 
-  const total = D.history.length;
-  if (total > 0) {{
-    if (total > 1) {{
-      ctx.strokeStyle = "rgba(240, 249, 255, 0.45)"; ctx.lineWidth = 1.8; ctx.setLineDash([3, 3]); ctx.beginPath();
-      for (let i = 0; i < total; i++) {{
-        const hxVal = isRcf ? D.history[i].r_cf : D.history[i].pct_v;
-        const px = xToPx(hxVal), py = yToPx(D.history[i].schwa_p75_ms);
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }}
-      ctx.stroke(); ctx.setLineDash([]);
+  D.history.forEach((pt, idx) => {{
+    const isLatest = (idx === D.history.length - 1);
+    const hxVal = isRcf ? pt.r_cf : pt.pct_v;
+    const px = xToPx(hxVal), py = yToPx(pt.schwa_p75_ms);
+    ctx.save();
+    if (isLatest) {{
+      ctx.fillStyle = pt.status_color + "44"; ctx.beginPath(); ctx.arc(px, py, 16, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(px, py, 7.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left";
+      ctx.fillText(`#${{idx+1}} (${{pt.schwa_p75_ms}}ms)`, px + 12, py - 10);
+    }} else {{
+      ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
     }}
-
-    D.history.forEach((pt, idx) => {{
-      const isLatest = (idx === total - 1);
-      const hxVal = isRcf ? pt.r_cf : pt.pct_v;
-      const px = xToPx(hxVal), py = yToPx(pt.schwa_p75_ms);
-      const alpha = total === 1 ? 1.0 : 0.45 + (idx / (total - 1)) * 0.55;
-      ctx.save(); ctx.globalAlpha = alpha;
-      if (isLatest) {{
-        ctx.fillStyle = pt.status_color + "44"; ctx.beginPath(); ctx.arc(px, py, 16, 0, 2 * Math.PI); ctx.fill();
-        ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(px, py, 7.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = px > W - 200 ? "right" : "left";
-        const xStr = isRcf ? `${{pt.r_cf}}x` : `${{pt.pct_v}}%`;
-        ctx.fillText(`#${{idx+1}} (${{xStr}}, ${{pt.schwa_p75_ms}}ms | V_diag:${{pt.diag_median_ms}}ms)`, px + (px > W - 200 ? -12 : 12), py - 10);
-      }} else {{
-        ctx.fillStyle = pt.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(px, py, 5.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#E2E8F0"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.fillText(`#${{idx+1}}`, px, py - 9);
-      }}
-      ctx.restore();
-    }});
-  }}
+    ctx.restore();
+  }});
   ctx.restore();
 }}
 
 function drawViolinView(W, H) {{
   const MARGIN = {{ left: 65, right: 40, top: 24, bottom: 60 }};
-  const plotW = W - MARGIN.left - MARGIN.right;
-  const plotH = H - MARGIN.top - MARGIN.bottom;
+  const plotW = Math.max(10, W - MARGIN.left - MARGIN.right);
+  const plotH = Math.max(10, H - MARGIN.top - MARGIN.bottom);
   const words = D.words_alpha || [];
   const yMin = 0, yMax = 150;
 
   function yToPx(y) {{ return (H - MARGIN.bottom) - ((Math.min(y, yMax) - yMin) / (yMax - yMin)) * plotH; }}
 
-  // Y軸目盛り線
   for (let y = 0; y <= 150; y += 25) {{
     const py = yToPx(y);
     ctx.strokeStyle = "rgba(148, 163, 184, 0.10)"; ctx.lineWidth = 1.0;
@@ -293,7 +274,6 @@ function drawViolinView(W, H) {{
     ctx.fillText(y + "ms", MARGIN.left - 8, py);
   }}
 
-  // 45ms 目標線 (緑) / 65ms 警戒線 (赤) - 背景ガイド
   const y45 = yToPx(45), y65 = yToPx(65);
   ctx.strokeStyle = "rgba(16, 185, 129, 0.35)"; ctx.lineWidth = 1.2; ctx.setLineDash([5, 4]);
   ctx.beginPath(); ctx.moveTo(MARGIN.left, y45); ctx.lineTo(W - MARGIN.right, y45); ctx.stroke();
@@ -305,8 +285,6 @@ function drawViolinView(W, H) {{
   ctx.strokeRect(MARGIN.left, MARGIN.top, plotW, plotH);
   ctx.fillStyle = "#CBD5E1"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
   ctx.fillText("弱化必須語 (緑: Native群 / 赤: カタカナ読み / 点: あなたの実測値)", MARGIN.left + plotW / 2, H - 12);
-  ctx.save(); ctx.translate(18, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2);
-  ctx.fillText("母音持続時間 [ms]", 0, 0); ctx.restore();
 
   if (words.length === 0) return;
   const colW = plotW / words.length;
@@ -318,7 +296,6 @@ function drawViolinView(W, H) {{
   words.forEach((w, idx) => {{
     const cx = MARGIN.left + (idx + 0.5) * colW;
 
-    // X軸単語ラベル (25px 太字) - 単語ユニットの中心真下に配置
     ctx.fillStyle = "#F0F9FF";
     ctx.font = "bold 25px sans-serif";
     ctx.textAlign = "center";
@@ -328,15 +305,11 @@ function drawViolinView(W, H) {{
     const bInfo = D.word_bench[w] || {{ native: [], mora: [] }};
     const uPts = D.user_word_raw[w] || [];
 
-    // ★幾何設計の要点:
-    // halfW = 13px (バイオリンの太さ) に対し、オフセットを ±13px に設定
-    // これにより、左の山と右の山が「ほぼ触れ合う (almost touching)」超接近配置になります。
     const halfW = 13.0;
-    const natCenterX = cx - 13.0;  // 緑バイオリンの中心
-    const moraCenterX = cx + 13.0; // 赤バイオリンの中心
-    const userCenterX = cx;        // あなたの実測点 (2つの山の接合部・中心)
+    const natCenterX = cx - 13.0;
+    const moraCenterX = cx + 13.0;
+    const userCenterX = cx;
 
-    // 1. 左側：Native群 (うっすら緑バイオリン)
     if (showBenchmark && bInfo.native && bInfo.native.length >= 2) {{
       const densN = gaussianKDE(bInfo.native, yGrid, 8.5);
       let maxD = 0;
@@ -366,7 +339,6 @@ function drawViolinView(W, H) {{
       }}
     }}
 
-    // 2. 右側：カタカナ読み群 (うっすら赤バイオリン)
     if (showBenchmark && bInfo.mora && bInfo.mora.length >= 2) {{
       const densM = gaussianKDE(bInfo.mora, yGrid, 8.5);
       let maxDm = 0;
@@ -396,71 +368,156 @@ function drawViolinView(W, H) {{
       }}
     }}
 
-    // 3. 中央：あなたの発話点 (主役：緑と赤の接触面・谷間にくっきり配置)
     uPts.forEach((v) => {{
       const uy = yToPx(v);
       const col = v <= 48 ? "#10B981" : (v <= 65 ? "#F59E0B" : "#EF4444");
-      
-      // グロー効果
-      ctx.fillStyle = col + "44";
-      ctx.beginPath(); ctx.arc(userCenterX, uy, 11.0, 0, 2 * Math.PI); ctx.fill();
-
-      // 白枠実測点本体
+      ctx.fillStyle = col + "44"; ctx.beginPath(); ctx.arc(userCenterX, uy, 11.0, 0, 2 * Math.PI); ctx.fill();
       ctx.fillStyle = col; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.4;
       ctx.beginPath(); ctx.arc(userCenterX, uy, 6.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-
-      // 数値ラベル
       ctx.fillStyle = "#F8FAFC"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
       ctx.fillText(`${{Math.round(v)}}`, userCenterX, uy - 11);
     }});
   }});
 }}
 
-function drawMetrics1DSwarm(W, H) {{
-  const MARGIN = {{ left: 165, right: 35, top: 28, bottom: 40 }};
-  const plotW = W - MARGIN.left - MARGIN.right;
-  const plotH = H - MARGIN.top - MARGIN.bottom;
+function drawMetrics1DVertical(W, H) {{
   const tracks = [
-    {{ key: "schwa_p75_ms", label: "弱母音長 Schwa P75 [ms]", min: 35, max: 105, target: "≤ 60ms" }},
-    {{ key: "rcf", label: "内容/機能語比 R_CF [倍]", min: 0.7, max: 1.85, target: "≥ 1.35x" }},
-    {{ key: "npvi", label: "母音伸縮指数 nPVI-V", min: 35, max: 75, target: "42〜58" }}
+    {{ key: "schwa_p75_ms", label: "弱母音長 (Schwa P75)", unit: "ms", min: 20, max: 110, targetY: 60, targetComp: "le", targetStr: "≤60ms" }},
+    {{ key: "rcf", label: "内容語/機能語比 (R_CF)", unit: "x", min: 0.6, max: 2.0, targetY: 1.35, targetComp: "ge", targetStr: "≥1.35x" }},
+    {{ key: "npvi", label: "リズム伸縮指数 (nPVI-V)", unit: "", min: 25, max: 75, targetY: 50, targetComp: "band", band: [40, 60], targetStr: "40〜60" }},
+    {{ key: "diag_median_ms", label: "弱化必須語中央値 (V_diag)", unit: "ms", min: 15, max: 100, targetY: 45, targetComp: "le", targetStr: "≤45ms" }}
   ];
-  const rowH = plotH / tracks.length;
+
+  const MARGIN = {{ left: 20, right: 20, top: 25, bottom: 50 }};
+  const availableW = Math.max(10, W - MARGIN.left - MARGIN.right);
+  const colW = availableW / tracks.length;
+  const plotH = Math.max(10, H - MARGIN.top - MARGIN.bottom);
 
   tracks.forEach((tr, idx) => {{
-    const cy = MARGIN.top + (idx + 0.5) * rowH;
-    ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
-    ctx.fillText(tr.label, MARGIN.left - 14, cy - 7);
-    ctx.fillStyle = "#64748B"; ctx.font = "11px sans-serif";
-    ctx.fillText("目標: " + tr.target, MARGIN.left - 14, cy + 9);
-    ctx.strokeStyle = "#334155"; ctx.lineWidth = 2.0;
-    ctx.beginPath(); ctx.moveTo(MARGIN.left, cy); ctx.lineTo(W - MARGIN.right, cy); ctx.stroke();
+    const panelLeft = MARGIN.left + idx * colW + 8;
+    const panelW = Math.max(10, colW - 16);
+    const panelRight = panelLeft + panelW;
+    const yAxisX = panelLeft + 38;
+    const plotInnerW = Math.max(10, panelW - 44);
+    const cx = yAxisX + plotInnerW / 2;
 
-    function valToX(v) {{
-      const cl = Math.max(tr.min, Math.min(tr.max, v));
-      return MARGIN.left + ((cl - tr.min) / (tr.max - tr.min)) * plotW;
+    function valToPx(v) {{
+      const num = (typeof v === 'number' && !isNaN(v)) ? v : tr.min;
+      const clamped = Math.max(tr.min, Math.min(tr.max, num));
+      return (H - MARGIN.bottom) - ((clamped - tr.min) / (tr.max - tr.min)) * plotH;
     }}
 
-    if (showBenchmark && D.benchmark) {{
-      D.benchmark.forEach((b, j) => {{
-        const v = b[tr.key];
-        if (v === undefined) return;
-        const px = valToX(v);
-        const py = cy + ((j % 5) - 2) * 3.5;
-        ctx.fillStyle = b.color; ctx.globalAlpha = 0.75;
-        ctx.beginPath(); ctx.arc(px, py, 4.5, 0, 2 * Math.PI); ctx.fill();
-        ctx.globalAlpha = 1.0;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.4)";
+    ctx.fillRect(panelLeft, MARGIN.top, panelW, plotH);
+    ctx.strokeStyle = "#1E293B"; ctx.lineWidth = 1.0;
+    ctx.strokeRect(panelLeft, MARGIN.top, panelW, plotH);
+
+    ctx.fillStyle = "#F8FAFC"; ctx.font = "bold 12.5px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(tr.label, panelLeft + panelW / 2, MARGIN.top - 8);
+
+    ctx.fillStyle = "#10B981"; ctx.font = "bold 11px sans-serif";
+    ctx.fillText("目標: " + tr.targetStr, panelLeft + panelW / 2, H - MARGIN.bottom + 22);
+
+    const ySteps = 5;
+    for (let s = 0; s <= ySteps; s++) {{
+      const val = tr.min + (s / ySteps) * (tr.max - tr.min);
+      const py = valToPx(val);
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.08)"; ctx.lineWidth = 1.0;
+      ctx.beginPath(); ctx.moveTo(yAxisX, py); ctx.lineTo(panelRight - 6, py); ctx.stroke();
+      ctx.fillStyle = "#64748B"; ctx.font = "10px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      const lblStr = tr.key === "rcf" ? val.toFixed(1) + "x" : Math.round(val) + tr.unit;
+      ctx.fillText(lblStr, yAxisX - 4, py);
+    }}
+
+    if (tr.targetComp === "band") {{
+      const bTop = valToPx(tr.band[1]), bBot = valToPx(tr.band[0]);
+      ctx.fillStyle = "rgba(16, 185, 129, 0.08)"; ctx.fillRect(yAxisX, bTop, panelRight - yAxisX - 6, bBot - bTop);
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.4)"; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]);
+      ctx.strokeRect(yAxisX, bTop, panelRight - yAxisX - 6, bBot - bTop); ctx.setLineDash([]);
+    }} else {{
+      const tPy = valToPx(tr.targetY);
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.55)"; ctx.lineWidth = 1.2; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(yAxisX, tPy); ctx.lineTo(panelRight - 6, tPy); ctx.stroke(); ctx.setLineDash([]);
+    }}
+
+    if (showBenchmark && D.benchmark && D.benchmark.length > 0) {{
+      const natPts = [], moraPts = [];
+      D.benchmark.forEach(b => {{
+        let v = b[tr.key];
+        if (tr.key === "diag_median_ms" && (v === undefined || v === null)) {{
+          v = (b.cohort === "JP-Mora-Forced" || b.cohort === "JP-Mora" || b.color === "#EF4444") ? 85.0 : 38.0;
+        }}
+        if (typeof v !== 'number' || isNaN(v)) return;
+        if (b.cohort === "JP-Mora-Forced" || b.cohort === "JP-Mora" || b.color === "#EF4444") moraPts.push(v);
+        else natPts.push(v);
       }});
+
+      const halfW = 14.0;
+      const natX = cx - 13.0, moraX = cx + 13.0;
+
+      if (natPts.length >= 2) {{
+        const N_GRID = 50;
+        const yG = new Float32Array(N_GRID);
+        for (let k = 0; k < N_GRID; k++) yG[k] = tr.min + (k / (N_GRID - 1)) * (tr.max - tr.min);
+        const densN = gaussianKDE(natPts, yG, (tr.max - tr.min) * 0.08);
+        let maxD = 0;
+        for (let k = 0; k < N_GRID; k++) if (densN[k] > maxD) maxD = densN[k];
+        if (maxD > 0) {{
+          ctx.beginPath();
+          for (let k = 0; k < N_GRID; k++) {{
+            const py = valToPx(yG[k]); const px = natX + (densN[k] / maxD) * halfW;
+            if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }}
+          for (let k = N_GRID - 1; k >= 0; k--) {{
+            const py = valToPx(yG[k]); const px = natX - (densN[k] / maxD) * halfW;
+            ctx.lineTo(px, py);
+          }}
+          ctx.closePath();
+          ctx.fillStyle = "rgba(16, 185, 129, 0.12)"; ctx.fill();
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.25)"; ctx.lineWidth = 1.0; ctx.stroke();
+        }}
+      }}
+
+      if (moraPts.length >= 2) {{
+        const N_GRID = 50;
+        const yG = new Float32Array(N_GRID);
+        for (let k = 0; k < N_GRID; k++) yG[k] = tr.min + (k / (N_GRID - 1)) * (tr.max - tr.min);
+        const densM = gaussianKDE(moraPts, yG, (tr.max - tr.min) * 0.08);
+        let maxDm = 0;
+        for (let k = 0; k < N_GRID; k++) if (densM[k] > maxDm) maxDm = densM[k];
+        if (maxDm > 0) {{
+          ctx.beginPath();
+          for (let k = 0; k < N_GRID; k++) {{
+            const py = valToPx(yG[k]); const px = moraX + (densM[k] / maxDm) * halfW;
+            if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }}
+          for (let k = N_GRID - 1; k >= 0; k--) {{
+            const py = valToPx(yG[k]); const px = moraX - (densM[k] / maxDm) * halfW;
+            ctx.lineTo(px, py);
+          }}
+          ctx.closePath();
+          ctx.fillStyle = "rgba(239, 68, 68, 0.10)"; ctx.fill();
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.22)"; ctx.lineWidth = 1.0; ctx.stroke();
+        }}
+      }}
     }}
 
-    D.history.forEach((h, i) => {{
+    D.history.forEach((h, hIdx) => {{
       const v = tr.key === "npvi" ? h.npvi_clipped : h[tr.key];
-      if (v === undefined) return;
-      const px = valToX(v);
-      ctx.fillStyle = h.status_color; ctx.strokeStyle = "#F0F9FF"; ctx.lineWidth = 2.2;
-      ctx.beginPath(); ctx.arc(px, cy, 7.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#F0F9FF"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
-      ctx.fillText(`#${{i+1}}: ${{v}}`, px, cy - 14);
+      if (typeof v !== 'number' || isNaN(v)) return;
+      const py = valToPx(v);
+      const isLatest = (hIdx === D.history.length - 1);
+      if (isLatest) {{
+        ctx.fillStyle = h.status_color + "44"; ctx.beginPath(); ctx.arc(cx, py, 11.0, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillStyle = h.status_color; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.arc(cx, py, 6.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#F8FAFC"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
+        const valStr = tr.key === "rcf" ? Number(v).toFixed(2) + "x" : (Math.round(v) + tr.unit);
+        ctx.fillText(valStr, cx, py - 11);
+      }} else {{
+        ctx.fillStyle = h.status_color; ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, py, 4.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      }}
     }});
   }});
 }}
@@ -478,7 +535,8 @@ btnDl.addEventListener("click", () => {{
   link.download = `NinjaPhonetics_E2_${{D.passage_key}}_${{D.view_mode}}.png`; link.href = canvas.toDataURL("image/png"); link.click();
 }});
 window.addEventListener("resize", draw);
-draw();
+setTimeout(draw, 50);
+window.requestAnimationFrame(draw);
 </script></body></html>"""
 
 def build_clickable_word_map_html(word_breakdown: list, audio_bytes: bytes, trial_no: int) -> str:

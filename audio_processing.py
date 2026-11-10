@@ -224,10 +224,29 @@ def evaluate_user_rhythm(audio_path: str, passage_key: str, custom_text: str):
     norm_preset = " ".join(bm["target_text"].strip().split())
     is_custom_mode = (norm_custom.lower() != norm_preset.lower())
 
-    w_aligns = align_word_characters(audio_path, norm_custom)
-    phones = map_words_to_phonemes(w_aligns)
-    metrics = compute_robust_metrics(phones)
-    r_cf, mean_c_ms, mean_f_ms, diag_median_ms, word_breakdown = compute_content_function_metrics(w_aligns, phones)
+    try:
+        w_aligns = align_word_characters(audio_path, norm_custom)
+        if not w_aligns:
+            raise ValueError("単語アライメントが検出されませんでした。")
+        phones = map_words_to_phonemes(w_aligns)
+        metrics = compute_robust_metrics(phones)
+        r_cf, mean_c_ms, mean_f_ms, diag_median_ms, word_breakdown = compute_content_function_metrics(w_aligns, phones)
+    except Exception as e:
+        err_msg = str(e)
+        if "targets length is too long" in err_msg or "短すぎます" in err_msg:
+            feedback_err = "録音音声がテキストに対して短すぎます。全文を最後まで読み上げるか、読んだ部分だけの英文に書き換えてください。"
+        else:
+            feedback_err = f"アライメント解析エラー: {err_msg}"
+        return {
+            "error": feedback_err,
+            "verdict": "RECORDING TOO SHORT",
+            "status_color": "#EF4444",
+            "feedback": feedback_err,
+            "pct_v": 0.0, "schwa_p75_ms": 0.0, "diag_median_ms": 0.0,
+            "npvi_clipped": 0.0, "r_cf": 1.0, "mean_c_ms": 0.0, "mean_f_ms": 0.0,
+            "d_m_sq": None, "is_strike": False, "is_bullseye": False,
+            "word_breakdown": []
+        }
 
     pct_v = metrics["pct_v"]
     schwa_p75 = metrics["schwa_p75_ms"]

@@ -54,12 +54,15 @@ Preplyレッスン中に生徒の発音をStreamlitで拾って診断するた�
 
 ### 手順 3: Chrome（Streamlit側）のマイクを「BlackHole」にする
 
-ここが生徒の声を拾うための肝です。
+ここが生徒の声を拾うための肝です。Chromeでは使用するマイク機器の選択は「サイトごとの設定」ではなく「Chrome全体のデフォルト設定」から行います。
 
-1. Chromeで `http://localhost:8502`（Streamlit画面）を開く。
-2. アドレスバー左端にある **「サイトの設定（調整アイコンまたは鍵アイコン）」** をクリック。
-3. **「マイク」** の設定項目を開き、標準マイクではなく **`BlackHole 2ch`** を選択する。
-4. Streamlitのページを再読み込み（F5 / Cmd+R）する。
+1. Chromeのアドレスバーに以下を入力（またはコピペ）して **Enter** を押し、マイク設定画面を直接開く：`chrome://settings/content/microphone`
+    - *(メニューから辿る場合：右上 `⋮` $\rightarrow$ **設定** $\rightarrow$ **プライバシーとセキュリティ** $\rightarrow$ **サイトの設定** $\rightarrow$ 権限内の **マイク**)*
+1. 画面最上部のドロップダウンメニューから、標準マイクではなく **`BlackHole 2ch (Virtual)`** を選択する。
+2. `http://localhost:8502`（Streamlit画面）のタブに戻り、ページを再読み込み（**Cmd+R**）する。
+
+> ※ レッスン終了後、他のWebアプリで通常のマイクを使う際は、同じ画面から元のマイク（MacBook Proのマイク等）に戻してください。
+
 
 ---
 

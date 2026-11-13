@@ -22,7 +22,7 @@ st.set_page_config(page_title="NinjaPhonetics: Biofeedback Scope", layout="wide"
 st.markdown(APP_CUSTOM_CSS, unsafe_allow_html=True)
 
 # セッション状態初期化
-if "app_mode" not in st.session_state: st.session_state.app_mode = "RHYTHM"
+if "app_mode" not in st.session_state: st.session_state.app_mode = "RL"
 if "current_label" not in st.session_state: st.session_state.current_label = "お手本: Right (US)"
 if "current_audio_bytes" not in st.session_state:
     init_path = os.path.join("presets", "right_us.wav")
@@ -62,9 +62,14 @@ with tab_m2:
 if st.session_state.app_mode == "RL":
     cols = st.columns(len(PRESETS))
     preset_clicked = False
+    active_preset_info = None
+
     for idx, col in enumerate(cols):
         p_info = PRESETS[idx]
         is_active = (st.session_state.current_label == f"お手本: {p_info['label']}")
+        if is_active:
+            active_preset_info = p_info
+
         if col.button(p_info["label"], type="primary" if is_active else "secondary", use_container_width=True):
             fpath = os.path.join(PRESET_DIR, p_info["file"])
             if os.path.exists(fpath):
@@ -87,11 +92,28 @@ if st.session_state.app_mode == "RL":
     if st.session_state.current_audio_bytes is not None:
         if st.session_state.current_label:
             st.markdown(f"<div class='sec-header'>{SHURIKEN_ICON_SM} 表示中: <span style='color: #F8FAFC;'>{st.session_state.current_label}</span></div>", unsafe_allow_html=True)
+
         clean_name = re.sub(r'[^a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]', '_', st.session_state.current_label).strip('_')
         scope_data = extract_scope_data_from_bytes(st.session_state.current_audio_bytes)
         html_code = build_spike2_html(scope_data, auto_play=st.session_state.auto_play, export_name=clean_name or "sample")
         st.session_state.auto_play = False
-        components.html(html_code, height=620, scrolling=False)
+        components.html(html_code, height=590, scrolling=False)
+
+        # 選択中プリセットの解説カード表示
+        if active_preset_info and active_preset_info.get("desc"):
+            st.markdown(f"""
+            <div style="background: #0F172A; border: 1px solid #1E293B; border-left: 4px solid #38BDF8; border-radius: 8px; padding: 12px 18px; margin-top: 6px;">
+              <div style="font-size: 0.82rem; font-weight: 700; color: #38BDF8; text-transform: uppercase; margin-bottom: 2px;">
+                {active_preset_info.get('phonetics', '')}
+              </div>
+              <div style="font-size: 1.15rem; font-weight: 800; color: #F8FAFC; margin-bottom: 4px;">
+                {active_preset_info.get('title', '')}
+              </div>
+              <div style="font-size: 0.88rem; color: #94A3B8; line-height: 1.5;">
+                {active_preset_info.get('desc', '')}
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # E2 モード
